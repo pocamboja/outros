@@ -1,4 +1,6 @@
-# BeatVox 🥁🎤
+# outros
+
+## BeatVox 🥁🎤
 
 Faz beatbox para o microfone e recebe o padrão de bateria numa grelha estilo DAW. Canta uma melodia e recebe as notas num piano roll. Exporta tudo em MIDI.
 
