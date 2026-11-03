@@ -528,16 +528,17 @@ body > .studio { display: none; }
 #stage3d { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: pan-y; cursor: move; }
 .mix-layout {
   position: relative; pointer-events: none;
-  display: grid; grid-template-columns: minmax(0, 1fr) 320px; grid-template-rows: auto 1fr auto; gap: 18px;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto 1fr auto; gap: 18px;
 }
 .mix-layout > * { pointer-events: auto; }
 .mix-head { grid-column: 1; grid-row: 1; display: flex; flex-direction: column; gap: 8px; max-width: 520px; text-shadow: 0 2px 20px rgba(0,0,0,.6); }
 .mix-head .sub { font-size: 14px; max-width: 46ch; }
-.mix-insp { grid-column: 2; grid-row: 1 / 3; align-self: start; max-height: 100%; gap: 12px; padding: 18px 20px; }
-.mix-next { grid-column: 2; grid-row: 3; align-self: end; margin: 0; }
+/* o painel de ajustes só aparece com algo escolhido, por cima do palco (não ocupa espaço quando está fechado) */
+.mix-insp { position: absolute; top: calc(var(--hud-h) + 18px); right: 48px; z-index: 3; width: 320px; max-height: calc(100% - var(--hud-h) - 18px - 88px - 72px); gap: 12px; padding: 18px 20px; }
+.mix-next { grid-column: 2; grid-row: 3; align-self: end; justify-self: end; margin: 0; padding-left: 28px; padding-right: 28px; }
 .mix-bar {
   grid-column: 1; grid-row: 3; justify-self: start; align-self: end;
-  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; padding: 10px 16px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 10px 14px;
   border-radius: var(--r); background: var(--glass); border: 1px solid var(--line); backdrop-filter: blur(18px) saturate(130%);
 }
 .mix-bar .group { flex-direction: row; align-items: center; gap: 10px; }
@@ -549,8 +550,6 @@ body > .studio { display: none; }
 .mx-title b { font-family: var(--serif); font-weight: 400; font-size: 26px; }
 .mx-title i { width: 9px; height: 9px; border-radius: 50%; background: var(--c); box-shadow: 0 0 12px var(--c); }
 .mx-ms { margin-left: auto; display: flex; gap: 4px; }
-.mx-back { align-self: flex-start; border: 0; background: none; color: var(--gold); font-size: 13px; padding: 0; }
-.mx-back:hover { color: var(--gold-lt); }
 .mx-sec { display: flex; flex-direction: column; gap: 4px; padding-top: 10px; border-top: 1px solid var(--line); }
 .mx-row { display: grid; grid-template-columns: 74px minmax(0, 1fr) 62px; align-items: center; gap: 10px; min-height: 30px; }
 .mx-row .seg { grid-column: 2 / 4; }
@@ -567,13 +566,53 @@ body > .studio { display: none; }
 .ms:hover { border-color: var(--gold); color: var(--ink); }
 .ms.on { background: rgba(217, 112, 127, 0.25); border-color: #d9707f; color: #ffd9de; }
 .ms.on.solo { background: rgba(224, 165, 86, 0.25); border-color: #e0a556; color: #ffe6c2; }
-.mx-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
-.mx-list li { display: flex; align-items: center; gap: 4px; }
-.mx-list.fxl { padding-top: 8px; border-top: 1px solid var(--line); }
-.mx-item { flex: 1; display: flex; align-items: center; gap: 10px; min-height: 34px; padding: 0 8px; border: 0; border-radius: 3px; background: transparent; color: var(--ink); font-size: 14px; text-align: left; }
-.mx-item:hover { background: rgba(216, 181, 122, 0.08); }
-.mx-item i { width: 7px; height: 7px; border-radius: 50%; background: var(--c); box-shadow: 0 0 8px var(--c); flex: 0 0 auto; }
-.mx-item span { margin-left: auto; font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.mix-insp[hidden] { display: none; }
+.mix-insp:not([hidden]) { animation: insp-in .35s var(--ease) both; }
+@keyframes insp-in { from { opacity: 0; transform: translateX(14px); } }
+.mx-close { width: 32px; height: 32px; margin-left: 4px; flex: 0 0 auto; }
+.mx-close svg { width: 15px; height: 15px; }
+.mx-title .mx-ms + .mx-close { margin-left: 6px; }
+.mx-title:not(:has(.mx-ms)) .mx-close { margin-left: auto; }
+.mx-edge { flex-wrap: wrap; row-gap: 4px; }
+.mx-edge b { font-size: 21px; }
+.mx-edge .arrow { color: var(--ink-3); font-size: 18px; }
+.mx-l i { display: inline-block; width: 6px; height: 6px; margin-right: 7px; border-radius: 50%; background: var(--c); box-shadow: 0 0 8px var(--c); vertical-align: 1px; }
+.mx-l { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mx-sw { grid-column: 2 / 4; justify-self: end; min-height: 30px; }
+.mx-title .mx-sw { grid-column: auto; }
+.mx-add { align-self: flex-start; margin-top: 4px; }
+.mx-remove { align-self: flex-start; color: #ffb4aa; }
+.mx-remove:hover:not(:disabled) { color: #ffd2cc; border-color: rgba(255, 120, 110, .45); }
+.mx-err { color: #ffb4aa; }
+.mx-centro:empty { display: none; }
+.mx-btns { display: flex; flex-wrap: wrap; gap: 6px; }
+.mx-outs { flex-wrap: wrap; border-bottom: 0; }
+.mx-outs button { border-bottom: 1px solid var(--line); }
+.mx-warn { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border-radius: var(--r); border: 1px solid rgba(255, 120, 110, .38); background: rgba(255, 120, 110, .07); }
+.mx-warn p { margin: 0; font-size: 13px; line-height: 1.45; color: var(--ink-2); }
+.mx-warn b { color: #ffd2cc; font-weight: 600; }
+.mx-warn-btns { display: flex; flex-wrap: wrap; gap: 6px; }
+.mx-warn .btn.small { min-height: 32px; padding: 0 10px; font-size: 12.5px; border-color: rgba(255, 120, 110, .3); }
+.fx-add { position: relative; }
+.fx-menu {
+  position: absolute; left: 0; bottom: calc(100% + 12px); z-index: 6; width: 560px; max-height: min(62vh, 540px); overflow-y: auto;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 2px; padding: 8px;
+  border-radius: var(--r); background: rgba(22, 8, 11, .95); border: 1px solid var(--line-2);
+  backdrop-filter: blur(18px) saturate(130%); box-shadow: 0 24px 70px rgba(0, 0, 0, .55);
+  animation: menu-in .22s var(--ease) both;
+}
+.fx-menu[hidden] { display: none; }
+@keyframes menu-in { from { opacity: 0; transform: translateY(6px); } }
+.fx-menu button {
+  display: grid; grid-template-columns: 10px minmax(0, 1fr); column-gap: 11px; row-gap: 1px; align-items: center;
+  padding: 8px 10px; border: 0; border-radius: 3px; background: transparent; color: var(--ink); text-align: left; cursor: pointer;
+}
+.fx-menu button:hover:not(:disabled), .fx-menu button:focus-visible { background: rgba(216, 181, 122, .09); outline: none; }
+.fx-menu button:disabled { opacity: .4; cursor: not-allowed; }
+.fx-menu i { grid-row: 1 / 3; width: 8px; height: 8px; border-radius: 50%; background: var(--c); box-shadow: 0 0 10px var(--c); }
+.fx-menu b { font-size: 14px; font-weight: 600; }
+.fx-menu span { grid-column: 2; font-size: 12px; line-height: 1.4; color: var(--ink-3); }
+#stage3d:focus-visible { outline: none; }
 .presence { display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: 6px; }
 .pcol { display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .pleds { display: flex; flex-direction: column-reverse; gap: 2px; width: 100%; }
@@ -664,7 +703,9 @@ dialog::backdrop { background: rgba(8, 2, 4, 0.65); backdrop-filter: blur(4px); 
   .studio-bar { flex-wrap: wrap; gap: 12px; }
   .bar-actions { margin-left: 0; }
   .mix-layout { grid-template-columns: 1fr; grid-template-rows: auto 46vh auto auto auto; }
-  .mix-insp { grid-column: 1; grid-row: 4; max-height: none; overflow: visible; }
+  .mix-insp { position: static; width: auto; grid-column: 1; grid-row: 4; max-height: none; overflow: visible; }
+  .mix-next { justify-self: stretch; }
+  .fx-menu { width: min(300px, calc(100vw - 48px)); grid-template-columns: 1fr; }
   .mix-bar { grid-row: 3; }
   .mix-next { grid-column: 1; grid-row: 5; }
   .s-mix .step-inner { overflow-y: auto; }
@@ -883,15 +924,23 @@ dialog::backdrop { background: rgba(8, 2, 4, 0.65); backdrop-filter: blur(4px); 
 
     <!-- V Mistura: palco 3D -->
     <section class="step s-mix" data-step="4" aria-label="Mistura">
-      <canvas id="stage3d" aria-label="Palco 3D da mistura: cada camada é uma dimensão do som"></canvas>
+      <canvas id="stage3d" tabindex="0" aria-label="Palco 3D da mistura: cada camada é uma dimensão do som. Setas: escolher som ou efeito."></canvas>
       <div class="step-inner mix-layout">
         <header class="mix-head" data-depth="0.3">
           <span class="movement">V</span>
           <h2 class="title">Mistura</h2>
-          <p class="sub">Cada camada é uma dimensão do som, dos graves (em baixo) aos agudos (em cima). Arrasta um som para os lados (pan) ou para a frente (mais alto). Arrasta o fundo para rodar.</p>
+          <p class="sub">Cada camada é uma dimensão do som, dos graves (em baixo) aos agudos (em cima). Arrasta um som para os lados (pan) ou para a frente (mais alto). Clica num som, num efeito ou numa ligação para o ajustar; puxa o <b>+</b> de um som até um efeito para o ligar.</p>
         </header>
-        <aside class="panel mix-insp" id="mixInsp" data-depth="0.5" aria-label="Ajustes do som"></aside>
+        <aside class="panel mix-insp" id="mixInsp" data-depth="0.5" aria-label="Ajustes" hidden></aside>
         <div class="mix-bar" data-depth="0.6">
+          <div class="fx-add">
+            <button class="btn small" id="btnAddFx" aria-haspopup="menu" aria-expanded="false" title="Acrescentar um efeito ao palco">+ Efeito</button>
+            <div class="fx-menu" id="fxMenu" role="menu" aria-label="Efeitos" hidden></div>
+          </div>
+          <div class="group">
+            <span class="g-label">Vista</span>
+            <div class="seg" id="viewSeg"><button data-v="free" class="on" title="Livre: arrasta para rodar">Livre</button><button data-v="front" title="De frente: pan × frequência">Frente</button><button data-v="top" title="De cima: pan × volume">Cima</button></div>
+          </div>
           <div class="group">
             <span class="g-label">Dimensões</span>
             <div class="seg" id="dimsSeg"><button data-v="3">3</button><button data-v="6">6</button></div>
@@ -944,7 +993,7 @@ dialog::backdrop { background: rgba(8, 2, 4, 0.65); backdrop-filter: blur(4px); 
                 </div>
               </li>
               <li>
-                <div class="out-txt"><b>Áudio WAV</b><span>O beat já tocado, 44,1 kHz. Stems: bateria e melodia em ficheiros separados.</span></div>
+                <div class="out-txt"><b>Áudio WAV</b><span>O beat já tocado (44,1 kHz, 24 bits), com a duração exata do loop: começa no tempo 1 e dá a volta sem costura no DAW. Stems: cada parte em separado, todas alinhadas.</span></div>
                 <div class="out-btns">
                   <button id="btnWav" class="btn small" disabled>Mistura</button>
                   <button id="btnStems" class="btn small ghost" disabled>Stems</button>
@@ -2085,7 +2134,9 @@ dialog::backdrop { background: rgba(8, 2, 4, 0.65); backdrop-filter: blur(4px); 
 </script>
   <script>
 /* BeatVox — mesa de mistura.
-   Cada som tem o seu canal: EQ de 3 bandas → volume → pan → saída, com envios para reverb e delay.
+   Cada som tem o seu canal: EQ de 3 bandas → volume → pan → saída direta para o master, e envios para os efeitos.
+   Os efeitos são instâncias que se acrescentam e removem (reverb, delay, chorus, flanger, phaser, distorção,
+   lo-fi, filtro, tremolo). Cada um recebe envios dos sons e manda a saída para o master ou para outro efeito.
    O mesmo código monta a mistura no contexto em tempo real e no render do WAV (OfflineAudioContext),
    por isso o que ouves é o que exportas. */
 (function (g) {
@@ -2115,45 +2166,217 @@ dialog::backdrop { background: rgba(8, 2, 4, 0.65); backdrop-filter: blur(4px); 
   };
   const DEFAULT_VOL = { kick: 0, snare: -2, clap: -3, hat: -6, openhat: -6, lead: -2, bass: -4, vdrums: -6, vlead: -6 };
   const DEFAULT_REV = { snare: 0.12, clap: 0.18, lead: 0.22, vlead: 0.15 };
-  const DIV = [{ v: 2, nome: '1/8' }, { v: 3, nome: '1/8 pontuada' }, { v: 4, nome: '1/4' }]; // em passos de 1/16
+
+  // ---------- tipos de efeito ----------
+  const pct = (v) => Math.round(v * 100) + '%';
+  const sec = (v) => v.toFixed(1).replace('.', ',') + ' s';
+  const msf = (v) => Math.round(v * 1000) + ' ms';
+  const hzf = (v) => (v < 1 ? v.toFixed(2) : v.toFixed(1)).replace('.', ',') + ' Hz';
+  const cutHz = (t) => 60 * Math.pow(2, t * 8.2); // 0..1 → 60 Hz .. 17 kHz
+  const kHz = (f) => (f >= 1000 ? (f / 1000).toFixed(f >= 10000 ? 0 : 1).replace('.', ',') + ' kHz' : Math.round(f) + ' Hz');
+  const lvl = (def) => ({ id: 'level', nome: 'Nível', min: 0, max: 1.5, step: 0.01, def, fmt: pct });
+  /** params: slider (min/max/step/fmt), seg (opts: [[valor, nome]]) ou toggle */
+  const FX_TYPES = {
+    reverb: {
+      nome: 'Reverb', cor: '#b9a6d6', dica: 'A sala onde os sons tocam: espaço e profundidade.',
+      params: [
+        { id: 'size', nome: 'Tamanho', min: 0.4, max: 6, step: 0.1, def: 2.4, fmt: sec },
+        { id: 'pre', nome: 'Pré-atraso', min: 0, max: 0.12, step: 0.005, def: 0.015, fmt: msf },
+        { id: 'tone', nome: 'Brilho', min: 0, max: 1, step: 0.01, def: 0.65, fmt: pct },
+        lvl(0.8),
+      ],
+    },
+    delay: {
+      nome: 'Delay', cor: '#8fc1b5', dica: 'Eco no tempo do beat.',
+      params: [
+        { id: 'div', nome: 'Tempo', kind: 'seg', opts: [[2, '1/8'], [3, '1/8 pont.'], [4, '1/4'], [6, '1/4 pont.']], def: 3 },
+        { id: 'fb', nome: 'Repetições', min: 0, max: 0.85, step: 0.01, def: 0.35, fmt: pct },
+        { id: 'tone', nome: 'Brilho', min: 0, max: 1, step: 0.01, def: 0.55, fmt: pct },
+        { id: 'pp', nome: 'Pingue-pongue', kind: 'toggle', def: 0 },
+        lvl(0.7),
+      ],
+    },
+    chorus: {
+      nome: 'Chorus', cor: '#8fb3e0', dica: 'Duplica o som com pequenas variações: mais largo e mais cheio.',
+      params: [
+        { id: 'rate', nome: 'Velocidade', min: 0.1, max: 4, step: 0.05, def: 0.7, fmt: hzf },
+        { id: 'depth', nome: 'Profundidade', min: 0, max: 1, step: 0.01, def: 0.5, fmt: pct },
+        lvl(0.9),
+      ],
+    },
+    flanger: {
+      nome: 'Flanger', cor: '#79c9d4', dica: 'Um "jato" metálico que sobe e desce.',
+      params: [
+        { id: 'rate', nome: 'Velocidade', min: 0.05, max: 2, step: 0.01, def: 0.2, fmt: hzf },
+        { id: 'depth', nome: 'Profundidade', min: 0, max: 1, step: 0.01, def: 0.7, fmt: pct },
+        { id: 'fb', nome: 'Ressonância', min: 0, max: 0.9, step: 0.01, def: 0.55, fmt: pct },
+        lvl(0.9),
+      ],
+    },
+    phaser: {
+      nome: 'Phaser', cor: '#a3d39c', dica: 'Ondas que rodam pelo som quando se junta ao original.',
+      params: [
+        { id: 'rate', nome: 'Velocidade', min: 0.05, max: 4, step: 0.05, def: 0.4, fmt: hzf },
+        { id: 'depth', nome: 'Profundidade', min: 0, max: 1, step: 0.01, def: 0.8, fmt: pct },
+        { id: 'res', nome: 'Ressonância', min: 0.3, max: 6, step: 0.1, def: 1.2, fmt: (v) => v.toFixed(1).replace('.', ',') },
+        lvl(1),
+      ],
+    },
+    drive: {
+      nome: 'Distorção', cor: '#e07a5f', dica: 'Saturação e garra. Em paralelo, o som original mantém o corpo.',
+      params: [
+        { id: 'drive', nome: 'Garra', min: 0, max: 1, step: 0.01, def: 0.5, fmt: pct },
+        { id: 'tone', nome: 'Brilho', min: 0, max: 1, step: 0.01, def: 0.5, fmt: pct },
+        lvl(0.6),
+      ],
+    },
+    lofi: {
+      nome: 'Lo-fi', cor: '#c9b458', dica: 'Menos bits e menos agudos: cassete ou sampler antigo.',
+      params: [
+        { id: 'bits', nome: 'Bits', min: 3, max: 12, step: 1, def: 6, fmt: (v) => v + ' bits' },
+        { id: 'tone', nome: 'Brilho', min: 0, max: 1, step: 0.01, def: 0.35, fmt: pct },
+        lvl(0.8),
+      ],
+    },
+    filter: {
+      nome: 'Filtro', cor: '#e3a0c8', dica: 'Corta graves ou agudos, parado ou a varrer no tempo do beat.',
+      params: [
+        { id: 'mode', nome: 'Tipo', kind: 'seg', opts: [['lp', 'Passa-baixo'], ['hp', 'Passa-alto'], ['bp', 'Banda']], def: 'lp' },
+        { id: 'cut', nome: 'Corte', min: 0, max: 1, step: 0.005, def: 0.5, fmt: (v) => kHz(cutHz(v)) },
+        { id: 'res', nome: 'Ressonância', min: 0.5, max: 12, step: 0.1, def: 3, fmt: (v) => v.toFixed(1).replace('.', ',') },
+        { id: 'rate', nome: 'Varrer', kind: 'seg', opts: [[0, 'Fixo'], [4, '1/4'], [8, '1/2'], [16, '1 comp.'], [32, '2 comp.']], def: 16 },
+        { id: 'depth', nome: 'Amplitude', min: 0, max: 1, step: 0.01, def: 0.5, fmt: pct },
+        lvl(1),
+      ],
+    },
+    tremolo: {
+      nome: 'Tremolo', cor: '#f0b86e', dica: 'O volume pulsa no tempo do beat.',
+      params: [
+        { id: 'rate', nome: 'Ritmo', kind: 'seg', opts: [[1, '1/16'], [2, '1/8'], [4, '1/4'], [8, '1/2']], def: 2 },
+        { id: 'depth', nome: 'Profundidade', min: 0, max: 1, step: 0.01, def: 0.8, fmt: pct },
+        { id: 'shape', nome: 'Forma', kind: 'seg', opts: [['sine', 'Suave'], ['square', 'Corte']], def: 'sine' },
+        lvl(1),
+      ],
+    },
+  };
+  const FX_ORDER = ['reverb', 'delay', 'chorus', 'flanger', 'phaser', 'drive', 'lofi', 'filter', 'tremolo'];
+  const MAX_FX = 8;
 
   function elements() {
     return (BV.DRUMS || []).map((d) => ({ id: d.id, nome: d.nome.replace(/ \(.*\)/, ''), cor: d.cor })).concat(EXTRA);
+  }
+  function fxDefaults(type) {
+    const p = {};
+    for (const q of FX_TYPES[type].params) p[q.id] = q.def;
+    return p;
+  }
+  function defaultFx() {
+    return [
+      { id: 'rev', type: 'reverb', on: true, out: 'master', p: fxDefaults('reverb') },
+      { id: 'dly', type: 'delay', on: true, out: 'master', p: fxDefaults('delay') },
+    ];
   }
   function defaultState() {
     const els = {};
     for (const e of elements()) {
       const p = {};
       for (const q of PARAMS[e.id] || []) p[q.id] = q.def;
+      const sends = {};
+      if (DEFAULT_REV[e.id]) sends.rev = DEFAULT_REV[e.id];
       // as gravações da tua voz começam fora da mistura (liga-as no palco se as quiseres no beat)
-      els[e.id] = { vol: DEFAULT_VOL[e.id] ?? 0, pan: 0, mute: e.id === 'vdrums' || e.id === 'vlead', solo: false, eq: [0, 0, 0], rev: DEFAULT_REV[e.id] || 0, dly: 0, p };
+      els[e.id] = { vol: DEFAULT_VOL[e.id] ?? 0, pan: 0, mute: e.id === 'vdrums' || e.id === 'vlead', solo: false, eq: [0, 0, 0], dry: true, sends, p };
     }
-    return { els, fx: { rev: { size: 2.4, level: 0.8 }, dly: { div: 3, fb: 0.35, level: 0.7 } }, bassOn: false, dims: 3 };
+    return { els, fx: defaultFx(), bassOn: false, dims: 3 };
+  }
+
+  /** o efeito `from` pode mandar a saída para `to` sem criar um ciclo? */
+  function canRoute(st, from, to) {
+    if (to === 'master') return true;
+    if (to === from) return false;
+    const byId = new Map(st.fx.map((f) => [f.id, f]));
+    if (!byId.has(to)) return false;
+    for (let cur = to, n = 0; cur && cur !== 'master' && n < 32; n++) {
+      if (cur === from) return false;
+      const f = byId.get(cur);
+      cur = f ? f.out : null;
+    }
+    return true;
+  }
+  function cleanP(type, src) {
+    const p = fxDefaults(type);
+    if (!src || typeof src !== 'object') return p;
+    for (const q of FX_TYPES[type].params) {
+      const v = src[q.id];
+      if (v == null) continue;
+      if (q.kind === 'seg') { const o = q.opts.find((x) => String(x[0]) === String(v)); if (o) p[q.id] = o[0]; }
+      else if (q.kind === 'toggle') p[q.id] = v ? 1 : 0;
+      else if (isFinite(+v)) p[q.id] = Math.max(q.min, Math.min(q.max, +v));
+    }
+    return p;
   }
   /** junta um estado guardado (talvez de uma versão antiga) com os valores por omissão */
   function merge(saved) {
     const d = defaultState();
     if (!saved || typeof saved !== 'object') return d;
+    // efeitos: lista nova, ou o formato antigo { rev: {...}, dly: {...} }
+    if (Array.isArray(saved.fx)) {
+      const seen = new Set();
+      d.fx = saved.fx.filter((f) => f && FX_TYPES[f.type] && typeof f.id === 'string' && !seen.has(f.id) && seen.add(f.id)).slice(0, MAX_FX).map((f) => ({
+        id: f.id, type: f.type, on: f.on !== false, out: typeof f.out === 'string' ? f.out : 'master', p: cleanP(f.type, f.p),
+        ...(f.pos && isFinite(f.pos.x) && isFinite(f.pos.z) ? { pos: { x: +f.pos.x, z: +f.pos.z } } : {}),
+      }));
+      for (const f of d.fx) if (!canRoute(d, f.id, f.out)) f.out = 'master';
+    } else if (saved.fx && typeof saved.fx === 'object') {
+      const [rev, dly] = d.fx;
+      if (saved.fx.rev) { if (isFinite(saved.fx.rev.size)) rev.p.size = +saved.fx.rev.size; if (isFinite(saved.fx.rev.level)) rev.p.level = +saved.fx.rev.level; }
+      if (saved.fx.dly) for (const k of ['div', 'fb', 'level']) if (isFinite(saved.fx.dly[k])) dly.p[k] = +saved.fx.dly[k];
+      if (![2, 3, 4, 6].includes(dly.p.div)) dly.p.div = 3;
+    }
+    const ids = new Set(d.fx.map((f) => f.id));
     for (const id in d.els) if (saved.els && saved.els[id]) {
       const s = saved.els[id], e = d.els[id];
-      Object.assign(e, { vol: +s.vol || 0, pan: +s.pan || 0, mute: !!s.mute, solo: !!s.solo, rev: +s.rev || 0, dly: +s.dly || 0 });
+      Object.assign(e, { vol: +s.vol || 0, pan: +s.pan || 0, mute: !!s.mute, solo: !!s.solo, dry: s.dry !== false });
       if (Array.isArray(s.eq)) e.eq = [0, 1, 2].map((i) => +s.eq[i] || 0);
       if (s.p) for (const k in e.p) if (s.p[k] != null) e.p[k] = +s.p[k];
-    }
-    if (saved.fx) {
-      if (saved.fx.rev) Object.assign(d.fx.rev, saved.fx.rev);
-      if (saved.fx.dly) Object.assign(d.fx.dly, saved.fx.dly);
+      e.sends = {};
+      if (s.sends && typeof s.sends === 'object') { for (const k in s.sends) if (ids.has(k) && +s.sends[k] > 0) e.sends[k] = Math.min(1, +s.sends[k]); }
+      else { // formato antigo: envios rev e dly
+        if (ids.has('rev') && +s.rev > 0) e.sends.rev = +s.rev;
+        if (ids.has('dly') && +s.dly > 0) e.sends.dly = +s.dly;
+      }
     }
     if (saved.bassOn != null) d.bassOn = !!saved.bassOn;
     if ([3, 6].includes(saved.dims)) d.dims = saved.dims;
     return d;
   }
+  /** acrescenta um efeito ao estado e devolve-o (null se já houver demasiados) */
+  function addFx(st, type) {
+    if (!FX_TYPES[type] || st.fx.length >= MAX_FX) return null;
+    let n = 1;
+    while (st.fx.some((f) => f.id === 'fx' + n)) n++;
+    const f = { id: 'fx' + n, type, on: true, out: 'master', p: fxDefaults(type) };
+    st.fx.push(f);
+    return f;
+  }
+  function removeFx(st, id) {
+    const f = st.fx.find((x) => x.id === id);
+    if (!f) return;
+    st.fx = st.fx.filter((x) => x.id !== id);
+    for (const x of st.fx) if (x.out === id) x.out = f.out !== id && canRoute(st, x.id, f.out) ? f.out : 'master';
+    for (const k in st.els) delete st.els[k].sends[id];
+  }
 
+  // ---------- áudio ----------
+  /** gerador pseudo-aleatório com semente: o reverb soa igual a tocar, no WAV e nos stems */
+  function rng(seed) {
+    let a = seed >>> 0;
+    return () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  }
   function impulse(c, dur) {
     const len = Math.max(1, Math.round(c.sampleRate * dur)), b = c.createBuffer(2, len, c.sampleRate);
     for (let ch = 0; ch < 2; ch++) {
-      const x = b.getChannelData(ch);
-      for (let i = 0; i < len; i++) x[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3);
+      const x = b.getChannelData(ch), r = rng(1013 + ch * 7919 + Math.round(dur * 10));
+      for (let i = 0; i < len; i++) x[i] = (r() * 2 - 1) * Math.pow(1 - i / len, 3);
     }
     return b;
   }
@@ -2162,21 +2385,182 @@ dialog::backdrop { background: rgba(8, 2, 4, 0.65); backdrop-filter: blur(4px); 
     for (let i = 0; i < n; i++) { const x = (i / (n - 1)) * 2 - 1; cv[i] = Math.tanh(a * x) / Math.tanh(a); }
     return cv;
   }
+  function crushCurve(bits) {
+    const n = 8192, cv = new Float32Array(n), q = Math.pow(2, bits - 1);
+    for (let i = 0; i < n; i++) { const x = (i / (n - 1)) * 2 - 1; cv[i] = Math.round(x * q) / q; }
+    return cv;
+  }
+  /** onda de LFO que começa no máximo: cosseno, ou quadrado suave (harmónicos ímpares, sem estalos) */
+  function lfoWave(c, shape) {
+    const N = 16, re = new Float32Array(N), im = new Float32Array(N);
+    if (shape === 'square') {
+      for (let k = 1; k < N; k += 2) { const s = Math.sin(Math.PI * k / N) / (Math.PI * k / N); im[k] = (4 / (Math.PI * k)) * s; }
+    } else re[1] = 1;
+    return c.createPeriodicWave(re, im);
+  }
+
+  /** cada tipo devolve { in, tail, set(p, k), sync?(t) } — k = { set(param, v), stepSec } */
+  const FXB = {
+    reverb(c) {
+      const inp = c.createGain(), pre = c.createDelay(0.5), hp = c.createBiquadFilter(), conv = c.createConvolver(), lp = c.createBiquadFilter();
+      hp.type = 'highpass'; hp.frequency.value = 110; lp.type = 'lowpass';
+      inp.connect(pre).connect(hp).connect(conv).connect(lp);
+      let size = 0;
+      return {
+        in: inp, tail: lp,
+        set(p, k) {
+          const sz = Math.round(p.size * 10) / 10;
+          if (sz !== size) { conv.buffer = impulse(c, sz); size = sz; }
+          k.set(pre.delayTime, p.pre); k.set(lp.frequency, 1500 * Math.pow(2, p.tone * 3.5));
+        },
+      };
+    },
+    delay(c) {
+      const inp = c.createGain(), sum = c.createGain();
+      // eco normal
+      const d = c.createDelay(5), lp = c.createBiquadFilter(), fb = c.createGain(), mono = c.createGain();
+      lp.type = 'lowpass';
+      inp.connect(mono); mono.connect(d); d.connect(lp).connect(fb).connect(d); lp.connect(sum);
+      // pingue-pongue: esquerda, direita, esquerda…
+      const ppIn = c.createGain(), dl = c.createDelay(5), dr = c.createDelay(5), lpl = c.createBiquadFilter(), lpr = c.createBiquadFilter();
+      const fbl = c.createGain(), fbr = c.createGain(), mg = c.createChannelMerger(2);
+      lpl.type = lpr.type = 'lowpass';
+      inp.connect(ppIn).connect(dl);
+      dl.connect(lpl); lpl.connect(mg, 0, 0); lpl.connect(fbl).connect(dr);
+      dr.connect(lpr); lpr.connect(mg, 0, 1); lpr.connect(fbr).connect(dl);
+      mg.connect(sum);
+      return {
+        in: inp, tail: sum,
+        set(p, k) {
+          const t = Math.min(4.9, p.div * k.stepSec), f = 1000 * Math.pow(2, p.tone * 3.6), r = Math.min(0.85, p.fb);
+          for (const x of [d, dl, dr]) k.set(x.delayTime, t);
+          for (const x of [lp, lpl, lpr]) k.set(x.frequency, f);
+          k.set(fb.gain, r); k.set(fbl.gain, r); k.set(fbr.gain, r);
+          k.set(mono.gain, p.pp ? 0 : 1); k.set(ppIn.gain, p.pp ? 1 : 0);
+        },
+      };
+    },
+    chorus(c) {
+      const inp = c.createGain(), dL = c.createDelay(0.1), dR = c.createDelay(0.1), mg = c.createChannelMerger(2);
+      const lfo = c.createOscillator(), aL = c.createGain(), aR = c.createGain();
+      dL.delayTime.value = 0.012; dR.delayTime.value = 0.018;
+      inp.connect(dL); inp.connect(dR);
+      dL.connect(mg, 0, 0); dR.connect(mg, 0, 1);
+      lfo.connect(aL).connect(dL.delayTime); lfo.connect(aR).connect(dR.delayTime);
+      lfo.start();
+      return {
+        in: inp, tail: mg, oscs: [lfo],
+        set(p, k) { k.set(lfo.frequency, p.rate); k.set(aL.gain, p.depth * 0.005); k.set(aR.gain, -p.depth * 0.005); },
+      };
+    },
+    flanger(c) {
+      // no ciclo de realimentação o atraso nunca desce de ~3 ms (regra da Web Audio): varre entre 3 e 10 ms
+      const inp = c.createGain(), sum = c.createGain(), d = c.createDelay(0.05), fb = c.createGain(), lfo = c.createOscillator(), amt = c.createGain();
+      inp.connect(sum).connect(d); d.connect(fb).connect(sum);
+      lfo.connect(amt).connect(d.delayTime); lfo.start();
+      return {
+        in: inp, tail: d, oscs: [lfo],
+        set(p, k) {
+          k.set(lfo.frequency, p.rate); k.set(d.delayTime, 0.003 + p.depth * 0.0035); k.set(amt.gain, p.depth * 0.0035);
+          k.set(fb.gain, Math.min(0.9, p.fb));
+        },
+      };
+    },
+    phaser(c) {
+      const inp = c.createGain(), lfo = c.createOscillator(), amt = c.createGain(), aps = [];
+      let head = inp;
+      for (let i = 0; i < 6; i++) {
+        const a = c.createBiquadFilter(); a.type = 'allpass'; a.frequency.value = 650;
+        head.connect(a); head = a; aps.push(a);
+        amt.connect(a.detune);
+      }
+      lfo.connect(amt); lfo.start();
+      return {
+        in: inp, tail: head, oscs: [lfo],
+        set(p, k) { k.set(lfo.frequency, p.rate); k.set(amt.gain, p.depth * 2200); for (const a of aps) k.set(a.Q, p.res); },
+      };
+    },
+    drive(c) {
+      const inp = c.createGain(), sh = c.createWaveShaper(), lp = c.createBiquadFilter(), post = c.createGain();
+      sh.oversample = '4x'; lp.type = 'lowpass';
+      inp.connect(sh).connect(lp).connect(post);
+      let dk = -1;
+      return {
+        in: inp, tail: post,
+        set(p, k) {
+          const q = Math.round(p.drive * 50) / 50;
+          if (q !== dk) { sh.curve = driveCurve(q); dk = q; }
+          const a = 1 + q * 10;
+          k.set(post.gain, 1 / Math.pow(a / Math.tanh(a), 0.6));
+          k.set(lp.frequency, 1200 * Math.pow(2, p.tone * 3.8));
+        },
+      };
+    },
+    lofi(c) {
+      const inp = c.createGain(), hp = c.createBiquadFilter(), sh = c.createWaveShaper(), lp = c.createBiquadFilter();
+      hp.type = 'highpass'; hp.frequency.value = 90; lp.type = 'lowpass'; lp.Q.value = 0.9;
+      inp.connect(hp).connect(sh).connect(lp);
+      let bits = 0;
+      return {
+        in: inp, tail: lp,
+        set(p, k) {
+          if (p.bits !== bits) { sh.curve = crushCurve(p.bits); bits = p.bits; }
+          k.set(lp.frequency, 700 * Math.pow(2, p.tone * 4.6));
+        },
+      };
+    },
+    filter(c) {
+      const inp = c.createGain(), f = c.createBiquadFilter(), amt = c.createGain();
+      inp.connect(f);
+      amt.connect(f.detune);
+      let lfo = null, period = 0, mode = '';
+      return {
+        in: inp, tail: f,
+        set(p, k) {
+          if (p.mode !== mode) { f.type = { lp: 'lowpass', hp: 'highpass', bp: 'bandpass' }[p.mode] || 'lowpass'; mode = p.mode; }
+          k.set(f.frequency, cutHz(p.cut)); k.set(f.Q, p.res);
+          period = p.rate ? p.rate * k.stepSec : 0;
+          k.set(amt.gain, period ? p.depth * 2400 : 0);
+          if (lfo) k.set(lfo.frequency, period ? 1 / period : 0);
+        },
+        /** recomeça o LFO no tempo t (o varrimento fica alinhado com o compasso) */
+        sync(t) {
+          if (lfo) { try { lfo.stop(t); } catch (e) {} }
+          lfo = c.createOscillator(); lfo.setPeriodicWave(lfoWave(c, 'sine'));
+          lfo.frequency.value = period ? 1 / period : 0;
+          lfo.connect(amt); lfo.start(t);
+        },
+      };
+    },
+    tremolo(c) {
+      const inp = c.createGain(), vca = c.createGain(), amt = c.createGain();
+      inp.connect(vca); amt.connect(vca.gain);
+      let lfo = null, period = 0, shape = 'sine';
+      return {
+        in: inp, tail: vca,
+        set(p, k) {
+          period = p.rate * k.stepSec;
+          k.set(vca.gain, 1 - p.depth / 2); k.set(amt.gain, p.depth / 2);
+          if (lfo) k.set(lfo.frequency, 1 / period);
+          if (lfo && p.shape !== shape) lfo.setPeriodicWave(lfoWave(c, p.shape));
+          shape = p.shape;
+        },
+        sync(t) {
+          if (lfo) { try { lfo.stop(t); } catch (e) {} }
+          lfo = c.createOscillator(); lfo.setPeriodicWave(lfoWave(c, shape));
+          lfo.frequency.value = period ? 1 / period : 2;
+          lfo.connect(amt); lfo.start(t);
+        },
+      };
+    },
+  };
 
   /** Monta a mesa num contexto (tempo real ou offline). dest = entrada do master. */
   function build(c, dest) {
-    const strips = {};
-    // FX: reverb e delay (retornos para o master)
-    const rev = { in: c.createGain(), conv: c.createConvolver(), out: c.createGain(), size: 0 };
-    rev.in.connect(rev.conv).connect(rev.out).connect(dest);
-    const dly = { in: c.createGain(), d: c.createDelay(2), fb: c.createGain(), lp: c.createBiquadFilter(), out: c.createGain() };
-    dly.lp.type = 'lowpass'; dly.lp.frequency.value = 4500;
-    dly.in.connect(dly.d); dly.d.connect(dly.lp).connect(dly.fb).connect(dly.d); dly.lp.connect(dly.out).connect(dest);
-    // analisadores dos retornos (para o palco 3D)
-    rev.an = c.createAnalyser(); rev.an.fftSize = 256; rev.out.connect(rev.an);
-    dly.an = c.createAnalyser(); dly.an.fftSize = 256; dly.out.connect(dly.an);
+    const strips = {}, buses = new Map();
+    const an = () => { const a = c.createAnalyser(); a.fftSize = 256; return a; };
     for (const e of elements()) {
-      const s = { input: c.createGain() };
+      const s = { input: c.createGain(), sends: new Map() };
       let head = s.input;
       if (e.id === 'bass') { s.drive = c.createWaveShaper(); s.drive.oversample = '2x'; s.driveK = -1; head.connect(s.drive); head = s.drive; }
       s.eqL = c.createBiquadFilter(); s.eqL.type = 'lowshelf'; s.eqL.frequency.value = 200;
@@ -2185,20 +2569,54 @@ dialog::backdrop { background: rgba(8, 2, 4, 0.65); backdrop-filter: blur(4px); 
       s.fader = c.createGain();
       s.pan = c.createStereoPanner ? c.createStereoPanner() : null;
       head.connect(s.eqL).connect(s.eqM).connect(s.eqH).connect(s.fader);
-      const post = s.pan ? (s.fader.connect(s.pan), s.pan) : s.fader;
-      post.connect(dest);
-      s.sendR = c.createGain(); s.sendR.gain.value = 0; post.connect(s.sendR).connect(rev.in);
-      s.sendD = c.createGain(); s.sendD.gain.value = 0; post.connect(s.sendD).connect(dly.in);
-      s.an = c.createAnalyser(); s.an.fftSize = 256; post.connect(s.an);
+      s.post = s.pan ? (s.fader.connect(s.pan), s.pan) : s.fader;
+      s.dry = c.createGain(); s.post.connect(s.dry).connect(dest);
+      s.an = an(); s.post.connect(s.an);
       strips[e.id] = s;
     }
+    function makeBus(f) {
+      const b = FXB[f.type](c);
+      b.type = f.type; b.out = c.createGain(); b.out.gain.value = 0;
+      b.tail.connect(b.out);
+      b.an = an(); b.out.connect(b.an);
+      b.target = null;
+      return b;
+    }
+    function dropBus(id) {
+      const b = buses.get(id);
+      if (!b) return;
+      for (const s of Object.values(strips)) { const sg = s.sends.get(id); if (sg) { sg.disconnect(); s.sends.delete(id); } }
+      for (const o of buses.values()) if (o.target === b.in) { o.out.disconnect(b.in); o.target = null; }
+      try { b.in.disconnect(); } catch (e) {}
+      try { b.out.disconnect(); } catch (e) {}
+      for (const o of b.oscs || []) { try { o.stop(); } catch (e) {} }
+      if (b.sync) b.sync = null;
+      buses.delete(id);
+    }
     const lvlBuf = new Float32Array(256);
-    const level = (an) => { an.getFloatTimeDomainData(lvlBuf); let q = 0; for (let i = 0; i < lvlBuf.length; i++) q += lvlBuf[i] * lvlBuf[i]; return Math.sqrt(q / lvlBuf.length); };
+    const level = (a) => { a.getFloatTimeDomainData(lvlBuf); let q = 0; for (let i = 0; i < lvlBuf.length; i++) q += lvlBuf[i] * lvlBuf[i]; return Math.sqrt(q / lvlBuf.length); };
+    let lastNow = 0;
     return {
-      strips, rev, dly,
+      strips, buses,
       /** aplica o estado (suave em tempo real, imediato no offline) */
       apply(st, bpm, stepsPerBeat = 4, now = 0, glide = 0.03) {
-        const set = (param, v) => { if (glide > 0) param.setTargetAtTime(v, now, glide); else param.setValueAtTime(v, now); };
+        lastNow = now;
+        const set = (param, v) => { if (!isFinite(v)) return; if (glide > 0) param.setTargetAtTime(v, now, glide); else param.setValueAtTime(v, now); };
+        const stepSec = 60 / bpm / 4; // passos de 1/16 (independente da grelha)
+        const k = { set, stepSec };
+        // efeitos: cria os novos, retira os que saíram (ou mudaram de tipo)
+        const want = new Map(st.fx.map((f) => [f.id, f]));
+        for (const [id, b] of [...buses]) if (!want.has(id) || want.get(id).type !== b.type) dropBus(id);
+        for (const f of st.fx) if (!buses.has(f.id)) { const b = makeBus(f); buses.set(f.id, b); if (b.sync) b.sync(now); }
+        for (const f of st.fx) {
+          const b = buses.get(f.id);
+          b.set(f.p, k);
+          set(b.out.gain, f.on ? f.p.level : 0);
+          const tb = f.out !== 'master' && buses.get(f.out);
+          const to = tb && canRoute(st, f.id, f.out) ? tb.in : dest;
+          if (b.target !== to) { if (b.target) b.out.disconnect(b.target); b.out.connect(to); b.target = to; }
+        }
+        // canais
         const anySolo = Object.values(st.els).some((e) => e.solo);
         for (const id in strips) {
           const s = strips[id], e = st.els[id];
@@ -2207,19 +2625,19 @@ dialog::backdrop { background: rgba(8, 2, 4, 0.65); backdrop-filter: blur(4px); 
           set(s.fader.gain, on ? Math.pow(10, e.vol / 20) : 0);
           if (s.pan) set(s.pan.pan, Math.max(-1, Math.min(1, e.pan)));
           set(s.eqL.gain, e.eq[0]); set(s.eqM.gain, e.eq[1]); set(s.eqH.gain, e.eq[2]);
-          set(s.sendR.gain, e.rev); set(s.sendD.gain, e.dly);
+          set(s.dry.gain, e.dry === false ? 0 : 1);
+          for (const [fid, b] of buses) {
+            const amt = (e.sends && e.sends[fid]) || 0;
+            let sg = s.sends.get(fid);
+            if (!sg && amt > 0) { sg = c.createGain(); sg.gain.value = 0; s.post.connect(sg).connect(b.in); s.sends.set(fid, sg); }
+            if (sg) set(sg.gain, amt);
+          }
           if (s.drive && e.p && s.driveK !== e.p.drive) { s.drive.curve = driveCurve(e.p.drive); s.driveK = e.p.drive; }
         }
-        // FX
-        const sz = Math.round(st.fx.rev.size * 10) / 10;
-        if (rev.size !== sz) { rev.conv.buffer = impulse(c, sz); rev.size = sz; }
-        set(rev.out.gain, st.fx.rev.level);
-        const stepSec = 60 / bpm / 4; // passos de 1/16 (independente da grelha)
-        set(dly.d.delayTime, Math.min(1.9, st.fx.dly.div * stepSec));
-        set(dly.fb.gain, Math.min(0.85, st.fx.dly.fb));
-        set(dly.out.gain, st.fx.dly.level);
       },
-      level(id) { return id === 'rev' ? level(rev.an) : id === 'dly' ? level(dly.an) : strips[id] ? level(strips[id].an) : 0; },
+      /** recomeça os LFOs no tempo do beat (filtro e tremolo) a partir de t */
+      sync(t = lastNow) { for (const b of buses.values()) if (b.sync) b.sync(t); },
+      level(id) { const b = buses.get(id); return b ? level(b.an) : strips[id] ? level(strips[id].an) : 0; },
     };
   }
 
@@ -2261,7 +2679,7 @@ dialog::backdrop { background: rgba(8, 2, 4, 0.65); backdrop-filter: blur(4px); 
     return { share, centroid: Math.pow(2, sw / (tot + 1e-20)) };
   }
 
-  BV.mix = { elements, PARAMS, DIV, BANDS6, BANDS3, defaultState, merge, build, spectrumProfile };
+  BV.mix = { elements, PARAMS, FX_TYPES, FX_ORDER, MAX_FX, BANDS6, BANDS3, defaultState, merge, addFx, removeFx, canRoute, fxDefaults, build, spectrumProfile };
   if (typeof module !== 'undefined') module.exports = BV;
 })(typeof window !== 'undefined' ? window : globalThis);
 
@@ -2306,6 +2724,36 @@ dialog::backdrop { background: rgba(8, 2, 4, 0.65); backdrop-filter: blur(4px); 
     if (c.createConstantSource) { bend = c.createConstantSource(); bend.offset.value = 0; bend.start(); }
     return { input, bend, p: { wet: wet.gain, dry: dry.gain, wahF: wah.frequency, wahG: wah.gain, lpF: lp.frequency, level: level.gain, send: send.gain, bend: bend && bend.offset } };
   }
+  // ---------- master: compressor ----------
+  // O DynamicsCompressor do browser arranca "fechado" (redução máxima) e só abre ao ritmo do release:
+  // sem isto, o primeiro tempo de cada WAV (e da primeira vez que tocas) sai abafado.
+  function makeComp(c, t = 0) {
+    const k = c.createDynamicsCompressor();
+    k.threshold.value = -10; k.ratio.value = 4;
+    k.release.setValueAtTime(0.001, t);
+    k.release.setValueAtTime(0.25, t + 0.05);
+    return k;
+  }
+  // o compressor atrasa o som (look-ahead de ~6 ms): mede-se uma vez para o WAV começar no tempo 1
+  let compLat = null;
+  function compLatency() {
+    if (!compLat) compLat = (async () => {
+      try {
+        const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext, sr = 44100, at = 1024;
+        const c = new OAC(1, 4096, sr), k = makeComp(c);
+        k.connect(c.destination);
+        const b = c.createBuffer(1, 1, sr); b.getChannelData(0)[0] = 0.5;
+        const s = c.createBufferSource(); s.buffer = b; s.connect(k); s.start(at / sr);
+        const x = (await c.startRendering()).getChannelData(0);
+        let mi = 0;
+        for (let i = 0; i < x.length; i++) if (Math.abs(x[i]) > Math.abs(x[mi])) mi = i;
+        const d = (mi - at) / sr;
+        return d >= 0 && d < 0.05 ? d : 0.006;
+      } catch (e) { return 0.006; }
+    })();
+    return compLat;
+  }
+
   const NEUTRAL = { wet: 0, dry: 1, wahF: 1000, wahG: 0, lpF: 20000, level: 1, send: 0, bend: 0 };
   function resetLeadBus(bus, t) {
     for (const k in bus.p) if (bus.p[k]) { bus.p[k].cancelScheduledValues(0); bus.p[k].setValueAtTime(NEUTRAL[k], t); }
@@ -2350,9 +2798,7 @@ dialog::backdrop { background: rgba(8, 2, 4, 0.65); backdrop-filter: blur(4px); 
         for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
         this.master = this.ctx.createGain();
         this.master.gain.value = 0.9;
-        const comp = this.ctx.createDynamicsCompressor();
-        comp.threshold.value = -10;
-        comp.ratio.value = 4;
+        const comp = makeComp(this.ctx, this.ctx.currentTime);
         this.master.connect(comp).connect(this.ctx.destination);
         // analisadores para a cena reagir ao som (saída e microfone)
         this.outAn = this.ctx.createAnalyser(); this.outAn.fftSize = 512;
@@ -2746,6 +3192,7 @@ dialog::backdrop { background: rgba(8, 2, 4, 0.65); backdrop-filter: blur(4px); 
       const stepDur = 60 / bpm / stepsPerBeat;
       const loopDur = stepDur * totalSteps;
       const t0 = c.currentTime + 0.12;
+      if (this.mixer) this.mixer.sync(t0); // LFOs (filtro, tremolo) alinhados com o compasso
       this.playT0 = t0;
       this.playLoopDur = loopDur;
       this.playStepDur = stepDur;
@@ -2797,13 +3244,25 @@ dialog::backdrop { background: rgba(8, 2, 4, 0.65); backdrop-filter: blur(4px); 
 
     /**
      * Renderiza o loop para um ficheiro de áudio, sem tocar nada (OfflineAudioContext), com os mesmos sons da reprodução.
-     * o = { bpm, stepsPerBeat, totalSteps, drums, lead, leadPreset, loops }
+     * o = { bpm, stepsPerBeat, totalSteps, drums, lead, bass, voices, leadPreset, leadFx, mix, loops,
+     *       master (false = sem o compressor do master, para os stems), raw (sem normalizar),
+     *       preroll (false = sem pré-rolo nem corte: só para medir o espetro) }
+     *
+     * O ficheiro tem a duração exata de N loops e começa no tempo 1 (amostra 0):
+     * - o loop toca uma ou mais vezes ANTES do início do ficheiro (pré-rolo), por isso o compressor do master
+     *   já está estável no primeiro tempo e as caudas do fim (reverb, delay, notas longas) entram no início,
+     *   como quando tocas em loop: o ficheiro dá a volta sem costura num DAW ou num leitor;
+     * - o atraso do compressor (look-ahead) é compensado no corte.
      */
     async render(o) {
       const sr = 44100, stepDur = 60 / o.bpm / o.stepsPerBeat, loops = o.loops || 1;
-      const loopDur = stepDur * o.totalSteps, tail = 1.2;
+      const loopDur = stepDur * o.totalSteps;
+      const useMaster = o.master !== false, cut = o.preroll !== false;
+      const lat = useMaster ? await compLatency() : 0;
+      const pre = cut ? Math.max(1, Math.ceil(2.5 / loopDur)) : 0;
+      const total = pre + loops;
       const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
-      const c = new OAC(2, Math.ceil((loopDur * loops + tail) * sr), sr);
+      const c = new OAC(2, Math.ceil((total * loopDur + lat + (cut ? 0.05 : 1.2)) * sr), sr);
       // um "motor" temporário que usa os mesmos sintetizadores, ligado ao contexto offline
       const r = Object.create(Engine.prototype);
       r.ctx = c;
@@ -2812,42 +3271,44 @@ dialog::backdrop { background: rgba(8, 2, 4, 0.65); backdrop-filter: blur(4px); 
       for (let i = 0; i < sr; i++) d[i] = Math.random() * 2 - 1;
       r.master = c.createGain();
       r.master.gain.value = 0.9;
-      const comp = c.createDynamicsCompressor();
-      comp.threshold.value = -10; comp.ratio.value = 4;
-      r.master.connect(comp).connect(c.destination);
+      if (useMaster) r.master.connect(makeComp(c, 0)).connect(c.destination);
+      else r.master.connect(c.destination);
       if (BV.mix && o.mix) {
         r.mixer = BV.mix.build(c, r.master);
         r.mixState = o.mix;
         r.mixer.apply(o.mix, o.bpm, o.stepsPerBeat, 0, 0);
+        r.mixer.sync(0);
       }
       r.leadBus = makeLeadBus(c, r.mixer ? r.mixer.strips.lead.input : r.master);
-      const t0 = 0.005;
-      for (let k = 0; k < loops; k++) {
-        const base = t0 + k * loopDur;
+      const voiceBufs = (o.voices || []).map((v) => {
+        const b = c.createBuffer(1, v.rec.samples.length, v.rec.sr);
+        b.copyToChannel(v.rec.samples, 0);
+        return b;
+      });
+      for (let k = 0; k < total; k++) {
+        const base = k * loopDur + (cut ? 0 : 0.005);
         scheduleLeadBus(r.leadBus, o.leadFx || null, base, stepDur);
         for (const n of o.drums || []) r.playDrum(n.drum, base + n.step * stepDur, n.vel);
         for (const n of o.lead || []) r.playLead(n.pitch, base + n.step * stepDur, n.len * stepDur, n.vel, o.leadPreset);
         for (const n of o.bass || []) r.playBass(n.pitch, base + n.step * stepDur, n.len * stepDur, n.vel);
-        for (const v of o.voices || []) {
-          const b = c.createBuffer(1, v.rec.samples.length, v.rec.sr);
-          b.copyToChannel(v.rec.samples, 0);
-          const src = c.createBufferSource(); src.buffer = b;
+        (o.voices || []).forEach((v, i) => {
+          const src = c.createBufferSource(); src.buffer = voiceBufs[i];
           src.connect(r.stripIn(v.kind)); src.start(base, Math.max(0, v.offset), loopDur);
-        }
+        });
       }
       const buf = await c.startRendering();
-      // corta a cauda silenciosa e faz um fade-out curto no fim
-      const L = buf.getChannelData(0), R = buf.getChannelData(1);
+      let L = buf.getChannelData(0), R = buf.getChannelData(1);
+      if (cut) {
+        const s0 = Math.round((pre * loopDur + lat) * sr), n = Math.round(loops * loopDur * sr);
+        L = L.slice(s0, s0 + n); R = R.slice(s0, s0 + n);
+      }
       // sem clipping: se passar de -1 dBFS, baixa o ganho de tudo por igual
-      let pk = 0;
-      for (let i = 0; i < L.length; i++) pk = Math.max(pk, Math.abs(L[i]), Math.abs(R[i]));
-      if (pk > 0.89 && !o.raw) { const g = 0.89 / pk; for (let i = 0; i < L.length; i++) { L[i] *= g; R[i] *= g; } }
-      let end = L.length;
-      const minEnd = Math.ceil((loopDur * loops + 0.05) * sr);
-      while (end > minEnd && Math.abs(L[end - 1]) < 1e-4 && Math.abs(R[end - 1]) < 1e-4) end--;
-      const fade = Math.min(end, Math.round(0.02 * sr));
-      for (let i = 0; i < fade; i++) { const g = i / fade; L[end - 1 - i] *= g; R[end - 1 - i] *= g; }
-      return { channels: [L.subarray(0, end), R.subarray(0, end)], sr };
+      if (!o.raw) {
+        let pk = 0;
+        for (let i = 0; i < L.length; i++) pk = Math.max(pk, Math.abs(L[i]), Math.abs(R[i]));
+        if (pk > 0.89) { const g = 0.89 / pk; for (let i = 0; i < L.length; i++) { L[i] *= g; R[i] *= g; } }
+      }
+      return { channels: [L, R], sr, bpm: o.bpm, beats: Math.round(loops * o.totalSteps / o.stepsPerBeat) };
     }
 
     stop() {
@@ -2871,21 +3332,61 @@ dialog::backdrop { background: rgba(8, 2, 4, 0.65); backdrop-filter: blur(4px); 
   BV.normalizeAudio = normalize;
   BV.Engine = Engine;
 
-  /** WAV PCM 16 bits a partir de canais Float32 → Uint8Array */
-  BV.encodeWav = function ({ channels, sr }) {
-    const nc = channels.length, n = channels[0].length, bytes = 44 + n * nc * 2;
-    const b = new ArrayBuffer(bytes), v = new DataView(b);
+  /**
+   * WAV PCM (24 bits por omissão) a partir de canais Float32 → Uint8Array.
+   * Com bpm e beats junta um chunk "acid" (andamento, n.º de tempos, 4/4): o FL Studio e outros DAWs
+   * ficam a saber o andamento do loop. name vai para os metadados (INFO).
+   */
+  BV.encodeWav = function ({ channels, sr, bpm, beats, name, bits = 24 }) {
+    const nc = channels.length, n = channels[0].length, bps = bits === 16 ? 2 : 3, dataLen = n * nc * bps;
+    const ascii = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\x20-\x7e]/g, '');
+    // chunks extra (depois dos dados, onde todos os leitores os aceitam)
+    const extra = [];
+    if (bpm && beats) {
+      const a = new DataView(new ArrayBuffer(24));
+      a.setUint32(0, 0x04, true);          // loop (não one-shot), com stretch
+      a.setUint16(4, 60, true); a.setUint16(6, 0x8000, true); a.setFloat32(8, 0, true);
+      a.setUint32(12, beats, true);
+      a.setUint16(16, 4, true); a.setUint16(18, 4, true); // 4/4
+      a.setFloat32(20, bpm, true);
+      extra.push(['acid', new Uint8Array(a.buffer)]);
+    }
+    const info = [['INAM', ascii(name)], ['ISFT', 'BeatVox']].filter(([, s]) => s);
+    if (info.length) {
+      const parts = info.map(([id, s]) => { const t = s + '\0', len = t.length + (t.length & 1), u = new Uint8Array(8 + len); for (let i = 0; i < 4; i++) u[i] = id.charCodeAt(i); new DataView(u.buffer).setUint32(4, t.length, true); for (let i = 0; i < t.length; i++) u[8 + i] = t.charCodeAt(i); return u; });
+      const body = new Uint8Array(4 + parts.reduce((s, p) => s + p.length, 0));
+      body.set([73, 78, 70, 79]); // INFO
+      let o = 4; for (const p of parts) { body.set(p, o); o += p.length; }
+      extra.push(['LIST', body]);
+    }
+    const extraLen = extra.reduce((s, [, d]) => s + 8 + d.length + (d.length & 1), 0);
+    const bytes = 44 + dataLen + (dataLen & 1) + extraLen;
+    const b = new ArrayBuffer(bytes), v = new DataView(b), u8 = new Uint8Array(b);
     const str = (o, t) => { for (let i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); };
     str(0, 'RIFF'); v.setUint32(4, bytes - 8, true); str(8, 'WAVE'); str(12, 'fmt ');
     v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, nc, true); v.setUint32(24, sr, true);
-    v.setUint32(28, sr * nc * 2, true); v.setUint16(32, nc * 2, true); v.setUint16(34, 16, true);
-    str(36, 'data'); v.setUint32(40, n * nc * 2, true);
+    v.setUint32(28, sr * nc * bps, true); v.setUint16(32, nc * bps, true); v.setUint16(34, bps * 8, true);
+    str(36, 'data'); v.setUint32(40, dataLen, true);
     let o = 44;
-    for (let i = 0; i < n; i++) for (let ch = 0; ch < nc; ch++) {
-      const x = Math.max(-1, Math.min(1, channels[ch][i]));
-      v.setInt16(o, x < 0 ? x * 0x8000 : x * 0x7fff, true); o += 2;
+    if (bps === 2) {
+      for (let i = 0; i < n; i++) for (let ch = 0; ch < nc; ch++) {
+        const x = Math.max(-1, Math.min(1, channels[ch][i]));
+        v.setInt16(o, Math.round(x < 0 ? x * 0x8000 : x * 0x7fff), true); o += 2;
+      }
+    } else {
+      for (let i = 0; i < n; i++) for (let ch = 0; ch < nc; ch++) {
+        const x = channels[ch][i];
+        let q = Math.round((x < 0 ? x * 8388608 : x * 8388607) || 0);
+        if (q > 8388607) q = 8388607; else if (q < -8388608) q = -8388608;
+        u8[o] = q & 255; u8[o + 1] = (q >> 8) & 255; u8[o + 2] = (q >> 16) & 255; o += 3;
+      }
     }
-    return new Uint8Array(b);
+    o += dataLen & 1;
+    for (const [id, d] of extra) {
+      str(o, id); v.setUint32(o + 4, d.length, true); u8.set(d, o + 8);
+      o += 8 + d.length + (d.length & 1);
+    }
+    return u8;
   };
 })(typeof window !== 'undefined' ? window : globalThis);
 
@@ -3493,8 +3994,12 @@ dialog::backdrop { background: rgba(8, 2, 4, 0.65); backdrop-filter: blur(4px); 
    Cada camada horizontal é uma dimensão do som (graves em baixo, agudos em cima; 3 ou 6 camadas).
    Cada som é um nó: a altura é o seu centro de frequência real, e em cada camada aparece um disco
    do tamanho da sua presença nessa banda. Esquerda-direita é o pan; para a frente (mais perto) é mais alto.
-   As ligações levam o som ao master e aos efeitos (reverb, delay), com partículas ao ritmo do nível.
-   Canvas 2D com projeção em perspetiva: câmara orbital (arrastar o fundo), zoom (roda), arrastar um nó mexe na mistura. */
+   É também um grafo de sinal: cada som liga ao Master (saída direta) e aos efeitos (envios); cada efeito
+   liga ao Master ou a outro efeito. As ligações levam partículas ao ritmo do nível.
+   Interação: arrastar o fundo roda a câmara; arrastar um som muda pan e volume; arrastar o "+" de um nó
+   até um efeito (ou ao Master) cria uma ligação; clicar numa ligação seleciona-a; duplo clique num nó
+   silencia o som ou desliga o efeito; os efeitos arrastam-se para onde quiseres.
+   Canvas 2D com projeção em perspetiva. */
 (function () {
   const BV = (window.BV = window.BV || {});
   const canvas = document.getElementById('stage3d');
@@ -3503,28 +4008,34 @@ dialog::backdrop { background: rgba(8, 2, 4, 0.65); backdrop-filter: blur(4px); 
   const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const S = {
-    vis: 0, nodes: [], fx: [], bands: [], selected: null, auto: true, empty: '', view: null,
-    getLevel: null, onSelect: null, onDrag: null, onDragEnd: null,
+    vis: 0, nodes: [], fx: [], bands: [], conflicts: [], selected: null, selEdge: null, auto: true, empty: '', view: null, preset: 'free',
+    getLevel: null, onSelect: null, onSelectEdge: null, onDrag: null, onDragEnd: null, onMoveFx: null, onConnect: null, onToggle: null,
+    onPreset: null, describe: null, describeEdge: null,
   };
   BV.stage3d = S;
 
   // ---------- geometria: frequência → altura, mistura → posição ----------
   const F_LO = Math.log2(30), F_HI = Math.log2(16000), YH = 2.7;
   const yOfF = (f) => 0.15 + ((Math.log2(Math.max(30, Math.min(16000, f))) - F_LO) / (F_HI - F_LO)) * YH;
-  const XW = 1.5, ZW = 1.35;
+  const XW = 1.5, ZW = 1.35, FXLIM = 2.6;
   const zOfVol = (db) => (Math.max(-30, Math.min(6, db)) + 30) / 36 * 2 - 1;      // -30 dB → atrás, +6 dB → à frente
   const volOfZ = (z) => Math.round(((Math.max(-1, Math.min(1, z)) + 1) / 2 * 36 - 30) * 2) / 2;
   S.posOf = (n) => ({ x: n.pan * XW, y: yOfF(n.centroid || 1000), z: zOfVol(n.vol) * ZW });
+  // o Master fica por baixo do centro; visto de cima passa para a frente das camadas, para não tapar os sons
+  const masterPos = () => { const k = Math.max(0, Math.min(1, (pitch - 0.9) / 0.5)); return { x: 0, y: -0.25, z: 2.5 * k * k * (3 - 2 * k) }; };
 
   // ---------- câmara ----------
   let yaw = -0.55, pitch = 0.36, dist = 6.4, W = 0, H = 0, dpr = 1, F = 600, CX = 0, CY = 0;
+  let aim = null; // vista para onde a câmara está a ir (Frente / Cima / Livre)
+  const fitT = { CX: 0, CY: 0, F: 600 };
   // enquadra o palco na zona livre do ecrã (S.view, em px do canvas) — ou no canvas inteiro
-  function fit() {
+  function fit(snap) {
     const v = S.view && S.view.x1 - S.view.x0 > 120 && S.view.y1 - S.view.y0 > 120 ? S.view : { x0: 0, y0: 0, x1: W, y1: H };
-    CX = (v.x0 + v.x1) / 2; CY = (v.y0 + v.y1) / 2 - (v.y1 - v.y0) * 0.03;
-    F = Math.min((v.x1 - v.x0) / (v.x1 - v.x0 < 520 ? 6.6 : 5.4), (v.y1 - v.y0) / 4.0) * 6.4;
+    fitT.CX = (v.x0 + v.x1) / 2; fitT.CY = (v.y0 + v.y1) / 2 - (v.y1 - v.y0) * 0.03;
+    fitT.F = Math.min((v.x1 - v.x0) / (v.x1 - v.x0 < 520 ? 6.6 : 5.4), (v.y1 - v.y0) / 4.0) * 6.4;
+    if (snap || reduce) { CX = fitT.CX; CY = fitT.CY; F = fitT.F; }
   }
-  S.setView = (v) => { S.view = v; fit(); };
+  S.setView = (v) => { const first = !S.view; S.view = v; fit(first); };
   const target = { x: 0, y: 1.45, z: 0 };
   function rot(v) { // mundo → câmara
     const cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
@@ -3555,7 +4066,7 @@ dialog::backdrop { background: rgba(8, 2, 4, 0.65); backdrop-filter: blur(4px); 
     dpr = Math.min(2, window.devicePixelRatio || 1);
     W = canvas.clientWidth; H = canvas.clientHeight;
     canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
-    fit();
+    fit(true);
   }
   addEventListener('resize', resize);
 
@@ -3567,26 +4078,40 @@ dialog::backdrop { background: rgba(8, 2, 4, 0.65); backdrop-filter: blur(4px); 
     return pts;
   }
   function path(pts, close = true) { c.beginPath(); pts.forEach((p, i) => (i ? c.lineTo(p.x, p.y) : c.moveTo(p.x, p.y))); if (close) c.closePath(); }
+  const fmtHz = (f) => (f >= 1000 ? (f / 1000).toFixed(f % 1000 ? 1 : 0).replace('.', ',') + ' kHz' : Math.round(f) + ' Hz');
+  const SANS = 'Geist, system-ui, sans-serif', SERIF = '"Bodoni Moda", Didot, Georgia, serif';
 
-  const particles = new Map(); // id → [u...]
-  let lastT = performance.now(), idleT = 0, layout = [];
+  const particles = new Map(); // id da ligação → [u...]
+  let lastT = performance.now(), idleT = 0;
+  let layout = [], edgeLayout = [], ports = [];
   const lv = new Map();
+  let mouse = null; // última posição do rato no canvas
 
   function frame(now) {
     const dt = Math.min(0.05, (now - lastT) / 1000); lastT = now;
     if (S.vis > 0.01 && !document.hidden) {
       if (canvas.clientWidth !== W || canvas.clientHeight !== H) resize();
-      if (S.auto && !drag && !reduce) { idleT += dt; if (idleT > 2) yaw += dt * 0.06; }
+      const ease = reduce ? 1 : 1 - Math.pow(0.0015, dt);
+      CX += (fitT.CX - CX) * ease; CY += (fitT.CY - CY) * ease; F += (fitT.F - F) * ease;
+      if (aim) {
+        let dy = aim.yaw - yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
+        yaw += dy * ease; pitch += (aim.pitch - pitch) * ease; dist += (aim.dist - dist) * ease;
+        if (Math.abs(dy) < 0.002 && Math.abs(aim.pitch - pitch) < 0.002 && Math.abs(aim.dist - dist) < 0.01) { yaw = aim.yaw; pitch = aim.pitch; dist = aim.dist; aim = null; }
+      } else if (S.auto && S.preset === 'free' && !drag && !reduce) { idleT += dt; if (idleT > 2) yaw += dt * 0.06; }
       draw(dt, now / 1000);
     }
     requestAnimationFrame(frame);
   }
 
+  /** ponto de controlo da curva de uma ligação (desce para o Master, sobe entre efeitos) */
+  const ctrl = (a, b, toMaster) => ({ x: (a.x + b.x) / 2, y: toMaster ? Math.max(a.y, b.y) + 30 : Math.min(a.y, b.y) - 36 });
+  const bez = (a, m, b, u) => ({ x: (1 - u) * (1 - u) * a.x + 2 * (1 - u) * u * m.x + u * u * b.x, y: (1 - u) * (1 - u) * a.y + 2 * (1 - u) * u * m.y + u * u * b.y });
+
   function draw(dt, t) {
     c.setTransform(dpr, 0, 0, dpr, 0, 0);
     c.clearRect(0, 0, W, H);
-    c.globalAlpha = Math.min(1, S.vis * 1.3);
-    const master = { x: 0, y: -0.25, z: 0 };
+    const A = Math.min(1, S.vis * 1.3);
+    c.globalAlpha = A;
     // camadas (dimensões)
     const P = 1.75;
     const planes = S.bands.map((b, i) => ({ ...b, i, y: yOfF(Math.sqrt(b.lo * b.hi)), y0: yOfF(b.lo), y1: yOfF(b.hi) }));
@@ -3597,7 +4122,6 @@ dialog::backdrop { background: rgba(8, 2, 4, 0.65); backdrop-filter: blur(4px); 
       grd.addColorStop(0, tint(pl.i, 0.02)); grd.addColorStop(1, tint(pl.i, 0.09));
       path(q); c.fillStyle = grd; c.fill();
       c.strokeStyle = tint(pl.i, 0.35); c.lineWidth = 1; c.stroke();
-      // grelha fina
       c.strokeStyle = tint(pl.i, 0.08);
       for (let g = -1; g <= 1; g += 0.5) {
         const a = proj({ x: g * P, y: pl.y, z: -P }), b = proj({ x: g * P, y: pl.y, z: P });
@@ -3605,35 +4129,46 @@ dialog::backdrop { background: rgba(8, 2, 4, 0.65); backdrop-filter: blur(4px); 
         const a2 = proj({ x: -P, y: pl.y, z: g * P }), b2 = proj({ x: P, y: pl.y, z: g * P });
         c.beginPath(); c.moveTo(a2.x, a2.y); c.lineTo(b2.x, b2.y); c.stroke();
       }
-      // nome da dimensão no canto
+      if (pitch > 1.1) continue; // de cima, as camadas sobrepõem-se: os nomes não se leriam
       const lab = proj({ x: -P, y: pl.y, z: P });
       c.fillStyle = tint(pl.i, 0.95);
-      c.font = `italic 400 ${Math.max(12, Math.min(18, lab.k * 0.05))}px "Bodoni Moda", Didot, Georgia, serif`;
+      c.font = `italic 400 ${Math.max(12, Math.min(18, lab.k * 0.05))}px ${SERIF}`;
       c.textAlign = 'right'; c.textBaseline = 'middle';
       c.fillText(pl.nome, lab.x - 10, lab.y);
-      c.font = '500 10.5px Geist, system-ui, sans-serif'; c.fillStyle = tint(pl.i, 0.55);
+      c.font = `500 10.5px ${SANS}`; c.fillStyle = tint(pl.i, 0.55);
       c.fillText(fmtHz(pl.lo) + '–' + fmtHz(pl.hi), lab.x - 10, lab.y + 15);
     }
-    // eixos de leitura: L/R e frente/trás
-    c.font = '500 10.5px Geist, system-ui, sans-serif'; c.fillStyle = 'rgba(216,181,122,0.45)'; c.textAlign = 'center';
+    // eixos de leitura: E/D e frente/trás
+    c.font = `500 10.5px ${SANS}`; c.fillStyle = 'rgba(216,181,122,0.45)'; c.textAlign = 'center';
     const yb = planes.length ? planes[0].y : 0.3;
     const lL = proj({ x: -P - 0.25, y: yb, z: 0 }), lR = proj({ x: P + 0.25, y: yb, z: 0 }), lF = proj({ x: 0, y: yb, z: P + 0.3 }), lB = proj({ x: 0, y: yb, z: -P - 0.3 });
-    c.fillText('E', lL.x, lL.y); c.fillText('D', lR.x, lR.y); c.fillText('mais alto', lF.x, lF.y); c.fillText('mais baixo', lB.x, lB.y);
+    c.fillText('E', lL.x, lL.y); c.fillText('D', lR.x, lR.y);
+    if (pitch > 0.2) { c.fillText('mais alto', lF.x, lF.y); c.fillText('mais baixo', lB.x, lB.y); } // de frente, a profundidade não se vê
 
-    // nós
+    // nós (sons) e efeitos, já projetados
     const nodes = S.nodes.map((n) => {
       const p = S.posOf(n);
       const l0 = lv.get(n.id) || 0, l1 = S.getLevel ? S.getLevel(n.id) : 0;
       const l = l1 > l0 ? l0 + (l1 - l0) * 0.6 : l0 + (l1 - l0) * 0.12;
       lv.set(n.id, l);
-      return { n, p, s: proj(p), l: Math.min(1, l * 4) };
+      return { n, p, s: proj(p), l: Math.min(1, l * 4), fx: false };
     });
+    const radius = (o) => (o.fx ? 9 : 8 + 3 * Math.sqrt(Math.max(0, (o.n.vol ?? 0) + 30) / 36)) * Math.min(1.8, o.s.k / 140) * (1 + 0.35 * o.l);
+    for (const o of nodes) o.r = radius(o);
+    // sons no mesmo sítio do ecrã afastam-se um pouco (só no desenho), para se verem os dois
+    for (let pass = 0; pass < 3; pass++) for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) {
+      const a = nodes[i].s, b = nodes[j].s, dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy), min = nodes[i].r + nodes[j].r + 10;
+      if (d < min) { const ux = d > 0.5 ? dx / d : 1, uy = d > 0.5 ? dy / d : 0, push = (min - d) / 2; a.x -= ux * push; a.y -= uy * push; b.x += ux * push; b.y += uy * push; }
+    }
     const fxs = S.fx.map((f) => {
       const l0 = lv.get(f.id) || 0, l1 = S.getLevel ? S.getLevel(f.id) : 0;
       const l = l0 + (l1 - l0) * 0.15; lv.set(f.id, l);
-      return { n: f, p: f.p, s: proj(f.p), l: Math.min(1, l * 6) };
+      const o = { n: f, p: f.p, s: proj(f.p), l: Math.min(1, l * 6), fx: true };
+      o.r = radius(o);
+      return o;
     });
-    const ms = proj(master);
+    const byId = new Map(nodes.concat(fxs).map((o) => [o.n.id, o]));
+    const ms = proj(masterPos());
 
     // presença em cada camada (discos) + haste vertical
     for (const o of nodes) {
@@ -3656,108 +4191,247 @@ dialog::backdrop { background: rgba(8, 2, 4, 0.65); backdrop-filter: blur(4px); 
         c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y); c.stroke(); c.setLineDash([]);
       }
     }
+    // conflitos: dois sons com muita energia na mesma camada, perto um do outro, a tocar ao mesmo tempo
+    for (const k of S.conflicts || []) {
+      const a = byId.get(k.a), b = byId.get(k.b), pl = planes[k.band];
+      if (!a || !b || !pl) continue;
+      const pa = proj({ x: a.p.x, y: pl.y, z: a.p.z }), pb = proj({ x: b.p.x, y: pl.y, z: b.p.z });
+      const pulse = 0.55 + 0.35 * Math.sin(t * 4);
+      c.strokeStyle = `rgba(255,120,110,${0.55 * pulse + 0.2 * k.sev})`; c.lineWidth = 1.5; c.setLineDash([4, 4]);
+      c.beginPath(); c.moveTo(pa.x, pa.y); c.lineTo(pb.x, pb.y); c.stroke(); c.setLineDash([]);
+      const mx = (pa.x + pb.x) / 2, my = (pa.y + pb.y) / 2;
+      c.fillStyle = `rgba(255,120,110,${0.85 * pulse})`; c.beginPath(); c.arc(mx, my, 7, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#1b0b06'; c.font = `700 10px ${SANS}`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('!', mx, my + 0.5);
+    }
 
-    // ligações (grafo): som → master; som → FX (envio); FX → master
-    const edge = (a, b, col, w, alpha, id, level) => {
-      const mx = (a.x + b.x) / 2, my = Math.max(a.y, b.y) + 30;
-      c.strokeStyle = col; c.globalAlpha = Math.min(1, S.vis * 1.3) * alpha; c.lineWidth = w;
-      c.beginPath(); c.moveTo(a.x, a.y); c.quadraticCurveTo(mx, my, b.x, b.y); c.stroke();
-      // partículas a correr na ligação, mais e mais rápidas com o nível
-      let ps = particles.get(id);
-      if (!ps) { ps = []; particles.set(id, ps); }
-      const want = Math.round(2 + level * 10);
-      while (ps.length < want) ps.push(Math.random());
-      while (ps.length > want) ps.pop();
-      c.fillStyle = col;
-      for (let i = 0; i < ps.length; i++) {
-        ps[i] = (ps[i] + dt * (0.15 + level * 0.9)) % 1;
-        const u = ps[i], x = (1 - u) * (1 - u) * a.x + 2 * (1 - u) * u * mx + u * u * b.x, y = (1 - u) * (1 - u) * a.y + 2 * (1 - u) * u * my + u * u * b.y;
-        c.globalAlpha = Math.min(1, S.vis * 1.3) * alpha * (0.4 + 0.6 * level) * Math.sin(u * Math.PI);
-        c.beginPath(); c.arc(x, y, 1.2 + level * 1.6, 0, Math.PI * 2); c.fill();
-      }
-      c.globalAlpha = Math.min(1, S.vis * 1.3);
-    };
+    // ligações (grafo)
+    const edges = [];
     for (const o of nodes) {
-      if (o.n.muted) continue;
-      edge(o.s, ms, hexA(o.n.cor, 0.5), 1, 0.55, o.n.id + '>m', o.l);
+      if (o.n.dry !== false) edges.push({ key: o.n.id + '>master', a: o, b: null, col: o.n.cor, amt: 1, dim: o.n.muted, level: o.l });
       for (const f of fxs) {
         const amt = o.n.sends ? o.n.sends[f.n.id] || 0 : 0;
-        if (amt > 0.01) edge(o.s, f.s, hexA(f.n.cor, 0.7), 0.5 + amt * 2.5, 0.2 + amt * 0.8, o.n.id + '>' + f.n.id, o.l * amt);
+        if (amt > 0.005) edges.push({ key: o.n.id + '>' + f.n.id, a: o, b: f, col: f.n.cor, amt, dim: o.n.muted || f.n.on === false, level: o.l * amt });
       }
     }
-    for (const f of fxs) edge(f.s, ms, hexA(f.n.cor, 0.5), 1, 0.4, f.n.id + '>m', f.l);
+    for (const f of fxs) {
+      const to = f.n.out && f.n.out !== 'master' ? byId.get(f.n.out) : null;
+      edges.push({ key: f.n.id + '>' + (to ? to.n.id : 'master'), a: f, b: to, col: f.n.cor, amt: 1, dim: f.n.on === false, level: f.l });
+    }
+    edgeLayout = [];
+    const hovEdge = hover && hover.edge;
+    for (const e of edges) {
+      const a = e.a.s, b = e.b ? e.b.s : ms, toMaster = !e.b, m = ctrl(a, b, toMaster);
+      const sel = S.selEdge === e.key, hov = hovEdge === e.key;
+      const base = e.b && !e.a.fx ? 0.2 + e.amt * 0.8 : 0.55;
+      const alpha = (e.dim ? 0.18 : base) * (sel || hov ? 1.6 : 1) * (S.selEdge && !sel ? 0.55 : 1);
+      const w = (e.b && !e.a.fx ? 0.5 + e.amt * 2.5 : 1) + (sel ? 1.5 : hov ? 0.8 : 0);
+      if (sel) { c.save(); c.shadowColor = e.col; c.shadowBlur = 12; }
+      c.strokeStyle = hexA(e.col, 0.5 + (sel ? 0.4 : 0)); c.globalAlpha = A * Math.min(1, alpha); c.lineWidth = w;
+      c.beginPath(); c.moveTo(a.x, a.y); c.quadraticCurveTo(m.x, m.y, b.x, b.y); c.stroke();
+      if (sel) c.restore();
+      // partículas a correr na ligação, mais e mais rápidas com o nível
+      let ps = particles.get(e.key);
+      if (!ps) { ps = []; particles.set(e.key, ps); }
+      const want = e.dim ? 0 : Math.round(2 + e.level * 10);
+      while (ps.length < want) ps.push(Math.random());
+      while (ps.length > want) ps.pop();
+      c.fillStyle = hexA(e.col, 0.9);
+      for (let i = 0; i < ps.length; i++) {
+        ps[i] = (ps[i] + dt * (0.15 + e.level * 0.9)) % 1;
+        const u = ps[i], q = bez(a, m, b, u);
+        c.globalAlpha = A * Math.min(1, alpha) * (0.4 + 0.6 * e.level) * Math.sin(u * Math.PI);
+        c.beginPath(); c.arc(q.x, q.y, 1.2 + e.level * 1.6, 0, Math.PI * 2); c.fill();
+      }
+      c.globalAlpha = A;
+      const pts = [];
+      for (let i = 0; i <= 16; i++) pts.push(bez(a, m, b, i / 16));
+      edgeLayout.push({ key: e.key, pts, mid: bez(a, m, b, 0.5), amt: e.amt, send: !!e.b && !e.a.fx, col: e.col });
+      if (sel && e.b && !e.a.fx) {
+        const q = bez(a, m, b, 0.5), txt = Math.round(e.amt * 100) + '%';
+        c.font = `600 11px ${SANS}`; const tw = c.measureText(txt).width + 12;
+        c.fillStyle = 'rgba(20,8,10,0.85)'; c.strokeStyle = hexA(e.col, 0.8); c.lineWidth = 1;
+        c.beginPath(); c.roundRect ? c.roundRect(q.x - tw / 2, q.y - 10, tw, 20, 10) : c.rect(q.x - tw / 2, q.y - 10, tw, 20); c.fill(); c.stroke();
+        c.fillStyle = '#fffaf0'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(txt, q.x, q.y + 0.5);
+      }
+    }
+    // cabo a ser puxado
+    if (drag && drag.kind === 'link') {
+      const from = byId.get(drag.from);
+      if (from) {
+        const tgt = drag.target;
+        const b = tgt ? (tgt === 'master' ? ms : byId.get(tgt).s) : { x: drag.x, y: drag.y };
+        c.strokeStyle = tgt ? '#f1dcae' : 'rgba(241,220,174,0.7)'; c.lineWidth = tgt ? 2 : 1.5; c.setLineDash(tgt ? [] : [5, 5]);
+        c.beginPath(); c.moveTo(from.s.x, from.s.y); c.lineTo(b.x, b.y); c.stroke(); c.setLineDash([]);
+      }
+    }
 
     // master: núcleo dourado
-    const pulse = nodes.reduce((m, o) => Math.max(m, o.l), 0);
+    const pulse = nodes.reduce((m, o) => Math.max(m, o.n.muted ? 0 : o.l), 0);
     const rm = (10 + pulse * 8) * Math.min(1.6, ms.k / 150);
+    const linkHot = drag && drag.kind === 'link';
     const gm = c.createRadialGradient(ms.x, ms.y, 0, ms.x, ms.y, rm * 2.4);
     gm.addColorStop(0, 'rgba(255,240,200,0.95)'); gm.addColorStop(0.35, 'rgba(216,181,122,0.55)'); gm.addColorStop(1, 'rgba(216,181,122,0)');
     c.fillStyle = gm; c.beginPath(); c.arc(ms.x, ms.y, rm * 2.4, 0, Math.PI * 2); c.fill();
-    c.fillStyle = '#d8b57a'; c.font = 'italic 400 15px "Bodoni Moda", Didot, Georgia, serif'; c.textAlign = 'center'; c.textBaseline = 'top';
+    if (linkHot) { c.strokeStyle = drag.target === 'master' ? '#fffaf0' : 'rgba(241,220,174,0.5)'; c.lineWidth = 1.5; c.setLineDash([3, 4]); c.beginPath(); c.arc(ms.x, ms.y, rm + 10, 0, Math.PI * 2); c.stroke(); c.setLineDash([]); }
+    c.fillStyle = '#d8b57a'; c.font = `italic 400 15px ${SERIF}`; c.textAlign = 'center'; c.textBaseline = 'top';
     c.fillText('Master', ms.x, ms.y + rm + 6);
 
-    // FX e sons, de trás para a frente
-    const all = nodes.map((o) => ({ ...o, fx: false })).concat(fxs.map((o) => ({ ...o, fx: true })));
+    // esferas, de trás para a frente
+    const all = nodes.concat(fxs);
     all.sort((a, b) => b.s.d - a.s.d);
-    layout = [];
+    layout = [{ id: 'master', x: ms.x, y: ms.y, r: Math.max(16, rm + 6), master: true }];
+    ports = [];
     for (const o of all) {
-      const r = (o.fx ? 9 : 8 + 3 * Math.sqrt(Math.max(0, (o.n.vol ?? 0) + 30) / 36)) * Math.min(1.8, o.s.k / 140) * (1 + 0.35 * o.l);
-      const sel = S.selected === o.n.id, hov = hover === o.n.id;
-      const dim = o.n.muted ? 0.3 : S.selected && !sel ? 0.75 : 1;
-      c.globalAlpha = Math.min(1, S.vis * 1.3) * dim;
-      // brilho
+      const r = o.r;
+      const sel = S.selected === o.n.id, hov = hover && hover.id === o.n.id;
+      const off = o.n.muted || o.n.on === false || o.n.silent;
+      const dim = off ? 0.3 : S.selected && !sel ? 0.75 : 1;
+      c.globalAlpha = A * dim;
       const g1 = c.createRadialGradient(o.s.x, o.s.y, 0, o.s.x, o.s.y, r * 3.2);
       g1.addColorStop(0, hexA(o.n.cor, 0.55 + 0.4 * o.l)); g1.addColorStop(1, hexA(o.n.cor, 0));
       c.fillStyle = g1; c.beginPath(); c.arc(o.s.x, o.s.y, r * 3.2, 0, Math.PI * 2); c.fill();
-      // esfera
       const g2 = c.createRadialGradient(o.s.x - r * 0.35, o.s.y - r * 0.4, r * 0.1, o.s.x, o.s.y, r);
       g2.addColorStop(0, '#fffaf0'); g2.addColorStop(0.35, o.n.cor); g2.addColorStop(1, hexA(o.n.cor, 0.55));
       c.fillStyle = g2; c.beginPath(); c.arc(o.s.x, o.s.y, r, 0, Math.PI * 2); c.fill();
-      if (o.fx) { c.strokeStyle = hexA(o.n.cor, 0.9); c.lineWidth = 1; c.beginPath(); c.arc(o.s.x, o.s.y, r + 4, 0, Math.PI * 2); c.stroke(); }
+      if (o.fx) { // efeitos: anel e, ao puxar um cabo, alvo
+        c.strokeStyle = hexA(o.n.cor, 0.9); c.lineWidth = 1; c.beginPath(); c.arc(o.s.x, o.s.y, r + 4, 0, Math.PI * 2); c.stroke();
+        if (linkHot && drag.from !== o.n.id) {
+          c.globalAlpha = A; c.strokeStyle = drag.target === o.n.id ? '#fffaf0' : hexA(o.n.cor, 0.6); c.lineWidth = 1.5; c.setLineDash([3, 4]);
+          c.beginPath(); c.arc(o.s.x, o.s.y, r + 11, 0, Math.PI * 2); c.stroke(); c.setLineDash([]);
+        }
+      }
+      if (o.n.silent && !o.fx) { c.strokeStyle = hexA(o.n.cor, 0.9); c.setLineDash([2, 3]); c.lineWidth = 1; c.beginPath(); c.arc(o.s.x, o.s.y, r + 4, 0, Math.PI * 2); c.stroke(); c.setLineDash([]); }
+      c.globalAlpha = A * dim;
       if (sel || hov) {
         c.strokeStyle = sel ? '#f1dcae' : 'rgba(241,220,174,0.6)'; c.lineWidth = sel ? 1.5 : 1;
         c.beginPath(); c.arc(o.s.x, o.s.y, r + 7 + (sel ? Math.sin(t * 3) * 1.5 : 0), 0, Math.PI * 2); c.stroke();
       }
-      // nome
-      c.fillStyle = sel ? '#fffaf0' : 'rgba(244,237,225,0.85)';
-      c.font = `${sel ? 600 : 500} 12px Geist, system-ui, sans-serif`; c.textAlign = 'center'; c.textBaseline = 'top';
-      if (!o.n.muted || sel || hov) c.fillText(o.n.nome + (o.n.muted ? ' (mudo)' : ''), o.s.x, o.s.y + r + 6);
-      layout.push({ id: o.n.id, x: o.s.x, y: o.s.y, r: Math.max(12, r + 6), fx: o.fx, n: o.n, p: o.p });
+      layout.push({ id: o.n.id, x: o.s.x, y: o.s.y, r: Math.max(12, r + 6), fx: o.fx, n: o.n, p: o.p, d: o.s.d });
+      // "+" para puxar uma ligação (mais visível no nó selecionado ou debaixo do rato)
+      const pr = r + 12, px = o.s.x + pr * 0.72, py = o.s.y - pr * 0.72, show = sel || hov || (hover && hover.port === o.n.id);
+      ports.push({ id: o.n.id, x: px, y: py, r: 10 });
+      if (!linkHot) {
+        c.globalAlpha = A * (show ? 1 : 0.28) * (off ? 0.6 : 1);
+        c.fillStyle = 'rgba(20,8,10,0.75)'; c.strokeStyle = show ? '#f1dcae' : hexA(o.n.cor, 0.9); c.lineWidth = 1;
+        c.beginPath(); c.arc(px, py, 6.5, 0, Math.PI * 2); c.fill(); c.stroke();
+        c.beginPath(); c.moveTo(px - 3, py); c.lineTo(px + 3, py); c.moveTo(px, py - 3); c.lineTo(px, py + 3); c.stroke();
+      }
+    }
+    // nomes, da frente para trás (os da frente ficam no sítio; os outros desviam-se)
+    // as esferas também são obstáculos: um nome nunca tapa outro nó
+    const placed = layout.map((L) => ({ x: L.x - L.r + 5, y: L.y - L.r + 5, w: 2 * L.r - 10, h: 2 * L.r - 10, id: L.id }));
+    const fits = (r, id) => !placed.some((q) => q.id !== id && r.x < q.x + q.w && q.x < r.x + r.w && r.y < q.y + q.h && q.y < r.y + r.h);
+    for (const L of layout.slice(1).sort((a, b) => a.d - b.d)) {
+      const sel = S.selected === L.id, hov = hover && hover.id === L.id, n = L.n;
+      const off = n.muted || n.on === false || n.silent;
+      const txt = n.nome + (n.muted ? ' (mudo)' : n.on === false ? ' (desligado)' : n.silent ? ' (sem saída)' : '');
+      c.font = `${sel ? 600 : 500} 12px ${SANS}`;
+      const w = c.measureText(txt).width + 6, h = 15;
+      let rect = null;
+      const spots = [[0, L.r - 2], [0, -L.r - h - 2], [L.r + w / 2 + 4, -h / 2], [-L.r - w / 2 - 4, -h / 2], [0, L.r + 14], [0, -L.r - h - 16]];
+      for (const [dx, dy] of spots) {
+        const r = { x: L.x + dx - w / 2, y: L.y + dy, w, h };
+        if (fits(r, L.id)) { rect = r; break; }
+      }
+      if (!rect) { if (!sel && !hov) continue; rect = { x: L.x - w / 2, y: L.y + L.r - 2, w, h }; }
+      placed.push({ ...rect, id: L.id });
+      c.globalAlpha = A * (off && !sel && !hov ? 0.55 : 1);
+      c.fillStyle = sel ? '#fffaf0' : 'rgba(244,237,225,0.85)'; c.textAlign = 'center'; c.textBaseline = 'top';
+      c.fillText(txt, rect.x + w / 2, rect.y + 1);
     }
     c.globalAlpha = 1;
+    // dica ao passar o rato
+    if (hover && mouse && !drag) {
+      const lines = hover.edge ? (S.describeEdge ? S.describeEdge(hover.edge) : null) : hover.port ? ['Arrasta até um efeito ou ao Master para ligar'] : hover.id && S.describe ? S.describe(hover.id) : null;
+      if (lines && lines.length) tip(lines, mouse.x, mouse.y);
+    }
     if (S.empty) {
-      c.fillStyle = 'rgba(244,237,225,0.7)'; c.font = 'italic 400 20px "Bodoni Moda", Didot, Georgia, serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.fillStyle = 'rgba(244,237,225,0.7)'; c.font = `italic 400 20px ${SERIF}`; c.textAlign = 'center'; c.textBaseline = 'middle';
       c.fillText(S.empty, W / 2, H * 0.42);
     }
   }
-  const fmtHz = (f) => (f >= 1000 ? (f / 1000).toFixed(f % 1000 ? 1 : 0).replace('.', ',') + ' kHz' : Math.round(f) + ' Hz');
+  function tip(lines, x, y) {
+    c.font = `500 11.5px ${SANS}`;
+    const w = Math.max(...lines.map((l) => c.measureText(l).width)) + 18, h = lines.length * 16 + 10;
+    let tx = x + 16, ty = y + 14;
+    if (tx + w > W - 6) tx = x - w - 10;
+    if (ty + h > H - 6) ty = y - h - 10;
+    c.fillStyle = 'rgba(18,6,9,0.9)'; c.strokeStyle = 'rgba(216,181,122,0.35)'; c.lineWidth = 1;
+    c.beginPath(); c.roundRect ? c.roundRect(tx, ty, w, h, 4) : c.rect(tx, ty, w, h); c.fill(); c.stroke();
+    c.textAlign = 'left'; c.textBaseline = 'top';
+    lines.forEach((l, i) => { c.fillStyle = i ? 'rgba(200,186,166,0.95)' : '#f4ede1'; c.font = `${i ? 400 : 600} 11.5px ${SANS}`; c.fillText(l, tx + 9, ty + 6 + i * 16); });
+  }
 
   // ---------- interação ----------
   let drag = null, hover = null;
-  const hit = (x, y) => { let best = null, bd = Infinity; for (const l of layout) { const d = Math.hypot(l.x - x, l.y - y); if (d < l.r && d < bd) { bd = d; best = l; } } return best; };
+  const hitNode = (x, y, withMaster = true) => {
+    let best = null, bd = Infinity;
+    for (const l of layout) { if (!withMaster && l.master) continue; const d = Math.hypot(l.x - x, l.y - y); if (d < l.r && d < bd) { bd = d; best = l; } }
+    return best;
+  };
+  // o "+" só ganha ao nó se o clique não for bem em cima de uma esfera (um + de trás não rouba o nó da frente)
+  const hitPort = (x, y) => {
+    const p = ports.find((q) => Math.hypot(q.x - x, q.y - y) < q.r);
+    if (!p) return null;
+    const h = hitNode(x, y);
+    return h && h.id !== p.id && Math.hypot(h.x - x, h.y - y) < h.r * 0.75 ? null : p;
+  };
+  function hitEdge(x, y) {
+    let best = null, bd = 7;
+    for (const e of edgeLayout) for (let i = 1; i < e.pts.length; i++) {
+      const a = e.pts[i - 1], b = e.pts[i], dx = b.x - a.x, dy = b.y - a.y, L2 = dx * dx + dy * dy || 1;
+      const u = Math.max(0, Math.min(1, ((x - a.x) * dx + (y - a.y) * dy) / L2));
+      const d = Math.hypot(a.x + u * dx - x, a.y + u * dy - y);
+      if (d < bd) { bd = d; best = e; }
+    }
+    return best;
+  }
   const pos = (e) => { const r = canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+  function linkTarget(x, y, from) {
+    const h = hitNode(x, y);
+    if (!h || h.id === from) return null;
+    if (h.master) return 'master';
+    return h.fx ? h.id : null;
+  }
   canvas.addEventListener('pointerdown', (e) => {
-    const p = pos(e), h = hit(p.x, p.y);
+    const p = pos(e);
     idleT = 0;
     canvas.setPointerCapture(e.pointerId);
-    if (h) {
-      S.selected = h.id;
+    const port = hitPort(p.x, p.y);
+    if (port) { drag = { kind: 'link', from: port.id, x: p.x, y: p.y, target: null }; return; }
+    const h = hitNode(p.x, p.y);
+    if (h && !h.master) {
+      S.selected = h.id; S.selEdge = null;
       if (S.onSelect) S.onSelect(h.id);
-      drag = h.fx ? { kind: 'none' } : { kind: 'node', id: h.id, y0: h.p.y, moved: false };
-    } else drag = { kind: 'orbit', x: p.x, y: p.y, yaw, pitch };
+      drag = h.fx ? { kind: 'fx', id: h.id, y0: h.p.y, moved: false } : { kind: 'node', id: h.id, y0: h.p.y, moved: false };
+      return;
+    }
+    const ed = hitEdge(p.x, p.y);
+    if (ed) {
+      S.selEdge = ed.key; S.selected = null;
+      if (S.onSelectEdge) S.onSelectEdge(ed.key);
+      drag = { kind: 'none' };
+      return;
+    }
+    drag = { kind: 'orbit', x: p.x, y: p.y, yaw, pitch, moved: false };
   });
   canvas.addEventListener('pointermove', (e) => {
     const p = pos(e);
+    mouse = p;
     if (!drag) {
-      const h = hit(p.x, p.y);
-      hover = h ? h.id : null;
-      canvas.style.cursor = h ? (h.fx ? 'pointer' : 'grab') : 'move';
+      const port = hitPort(p.x, p.y), h = port ? null : hitNode(p.x, p.y), ed = port || h ? null : hitEdge(p.x, p.y);
+      hover = port ? { port: port.id, id: null } : h && !h.master ? { id: h.id } : ed ? { edge: ed.key } : null;
+      canvas.style.cursor = port ? 'crosshair' : h && !h.master ? (h.fx ? 'pointer' : 'grab') : ed ? 'pointer' : 'move';
       return;
     }
     idleT = 0;
     if (drag.kind === 'orbit') {
+      if (Math.abs(p.x - drag.x) + Math.abs(p.y - drag.y) > 3) drag.moved = true;
+      if (!drag.moved) return;
+      aim = null;
+      if (S.preset !== 'free') { S.preset = 'free'; if (S.onPreset) S.onPreset('free'); }
       yaw = drag.yaw + (p.x - drag.x) * 0.006;
-      pitch = Math.max(0.05, Math.min(1.25, drag.pitch + (p.y - drag.y) * 0.004));
+      pitch = Math.max(0.02, Math.min(1.5, drag.pitch + (p.y - drag.y) * 0.004));
     } else if (drag.kind === 'node') {
       const w = rayPlaneY(p.x, p.y, drag.y0);
       if (!w) return;
@@ -3765,20 +4439,51 @@ dialog::backdrop { background: rgba(8, 2, 4, 0.65); backdrop-filter: blur(4px); 
       canvas.style.cursor = 'grabbing';
       const pan = Math.round(Math.max(-1, Math.min(1, w.x / XW)) * 100) / 100;
       if (S.onDrag) S.onDrag(drag.id, pan, volOfZ(w.z / ZW));
+    } else if (drag.kind === 'fx') {
+      const w = rayPlaneY(p.x, p.y, drag.y0);
+      if (!w) return;
+      drag.moved = true;
+      canvas.style.cursor = 'grabbing';
+      if (S.onMoveFx) S.onMoveFx(drag.id, Math.max(-FXLIM, Math.min(FXLIM, w.x)), Math.max(-FXLIM, Math.min(FXLIM, w.z)));
+    } else if (drag.kind === 'link') {
+      drag.x = p.x; drag.y = p.y;
+      drag.target = linkTarget(p.x, p.y, drag.from);
+      canvas.style.cursor = drag.target ? 'copy' : 'crosshair';
     }
   });
-  const end = () => { if (drag && drag.kind === 'node' && drag.moved && S.onDragEnd) S.onDragEnd(drag.id); drag = null; };
+  const end = () => {
+    if (drag) {
+      if ((drag.kind === 'node' || drag.kind === 'fx') && drag.moved && S.onDragEnd) S.onDragEnd(drag.id);
+      if (drag.kind === 'link' && drag.target && S.onConnect) S.onConnect(drag.from, drag.target);
+      if (drag.kind === 'orbit' && !drag.moved && (S.selected || S.selEdge)) { S.selected = null; S.selEdge = null; if (S.onSelect) S.onSelect(null); }
+    }
+    drag = null;
+  };
   canvas.addEventListener('pointerup', end);
   canvas.addEventListener('pointercancel', end);
+  canvas.addEventListener('pointerleave', () => { if (!drag) { hover = null; mouse = null; } });
+  canvas.addEventListener('dblclick', (e) => {
+    const p = pos(e), h = hitNode(p.x, p.y, false);
+    if (h && S.onToggle) S.onToggle(h.id);
+  });
   // a roda do rato muda de movimento (scroll da página); o zoom é com pinça no trackpad (ctrl + roda) ou com S.zoom()
   canvas.addEventListener('wheel', (e) => {
     if (!e.ctrlKey) return;
     e.preventDefault(); idleT = 0;
-    dist = Math.max(3.6, Math.min(11, dist * (1 + Math.sign(e.deltaY) * 0.08)));
+    dist = Math.max(3.6, Math.min(12, dist * (1 + Math.sign(e.deltaY) * 0.08)));
   }, { passive: false });
   S.hits = () => layout;
-  S.zoom = (k) => { idleT = 0; dist = Math.max(3.6, Math.min(11, dist * k)); };
-  S.resetView = () => { yaw = -0.55; pitch = 0.36; dist = 6.4; idleT = 0; };
+  S.edges = () => edgeLayout;
+  S.ports = () => ports;
+  S.zoom = (k) => { idleT = 0; dist = Math.max(3.6, Math.min(12, dist * k)); if (aim) aim.dist = Math.max(3.6, Math.min(12, aim.dist * k)); };
+  const PRESETS = { free: { yaw: -0.55, pitch: 0.36, dist: 6.4 }, front: { yaw: 0, pitch: 0.03, dist: 6.8 }, top: { yaw: 0, pitch: 1.5, dist: 9.2 } };
+  /** vistas: livre (a rodar), de frente (pan × frequência) e de cima (pan × volume) */
+  S.setPreset = (name) => {
+    if (!PRESETS[name]) return;
+    S.preset = name; idleT = 0;
+    aim = { ...PRESETS[name] };
+  };
+  S.resetView = () => { S.setPreset('free'); idleT = 0; if (S.onPreset) S.onPreset('free'); };
 
   resize();
   requestAnimationFrame(frame);
@@ -4563,8 +5268,9 @@ dialog::backdrop { background: rgba(8, 2, 4, 0.65); backdrop-filter: blur(4px); 
     $('btnMidiAll').disabled = !(hasDrums() || hasLead());
     const any = hasDrums() || hasLead();
     for (const id of ['btnWav', 'btnSaveProj', 'btnAll']) $(id).disabled = !any || rendering;
-    $('btnStems').disabled = !(hasDrums() && hasLead()) || rendering;
-    $('btnStems').title = hasDrums() && hasLead() ? '' : 'Precisa de bateria e melodia';
+    const nStems = stemParts().length;
+    $('btnStems').disabled = nStems < 2 || rendering;
+    $('btnStems').title = nStems >= 2 ? stemParts().map(([n]) => n).join(', ') : 'Precisa de pelo menos duas partes (bateria, melodia, 808 ou voz)';
     $('btnCoverPlay').disabled = $('btnPlay').disabled;
     $('btnPng').disabled = !hasCur && !C.rec;
     $('btnPlay').disabled = (!hasDrums() && !hasLead() && !matches(C.rec) && !state.metronome) || state.busy;
@@ -4931,17 +5637,42 @@ dialog::backdrop { background: rgba(8, 2, 4, 0.65); backdrop-filter: blur(4px); 
     download(new Blob([midiBytes(kind)], { type: 'audio/midi' }), `${fileBase()}-${name}.mid`);
     if (!EMBEDDED) setStatus(kind === 'all' ? 'MIDI completo descarregado.' : 'MIDI descarregado — arrasta-o para o teu DAW.', 'ok');
   }
-  async function wavBytes(kind) {
-    const voices = kind === 'mix' ? [[state.drums, 'vdrums'], [state.lead, 'vlead']]
-      .filter(([R, k]) => matches(R.rec) && !state.mix.els[k].mute).map(([R, k]) => ({ rec: R.rec, offset: bar1Of(R.rec) / R.rec.sr, kind: k })) : [];
-    const r = await engine.render({
-      mix: state.mix, voices,
-      bass: kind === 'mix' || kind === 'bass' ? bassNotes() : [],
-      bpm: state.bpm, stepsPerBeat: stepsPerBeat(), totalSteps: totalSteps(), loops: state.loops, leadPreset: state.lead.preset,
-      drums: kind === 'mix' || kind === 'drums' ? state.drums.notes : [], lead: kind === 'mix' || kind === 'lead' ? state.lead.notes : [],
-      leadFx: kind === 'mix' || kind === 'lead' ? leadFxNow() : null,
+  // as gravações da voz que estão ligadas na mistura (tiraste o "M")
+  const mixVoices = () => [[state.drums, 'vdrums'], [state.lead, 'vlead']]
+    .filter(([R, k]) => matches(R.rec) && !state.mix.els[k].mute).map(([R, k]) => ({ rec: R.rec, offset: bar1Of(R.rec) / R.rec.sr, kind: k }));
+  /** opções do render para as partes pedidas ({ drums, lead, bass, voices }) */
+  function renderOpts(parts, extra = {}) {
+    return {
+      mix: state.mix, bpm: state.bpm, stepsPerBeat: stepsPerBeat(), totalSteps: totalSteps(), loops: state.loops, leadPreset: state.lead.preset,
+      drums: parts.drums ? state.drums.notes : [], lead: parts.lead ? state.lead.notes : [], leadFx: parts.lead ? leadFxNow() : null,
+      bass: parts.bass ? bassNotes() : [], voices: parts.voices ? mixVoices() : [], ...extra,
+    };
+  }
+  async function wavMix() {
+    const r = await engine.render(renderOpts({ drums: 1, lead: 1, bass: 1, voices: 1 }));
+    return BV.encodeWav({ ...r, name: state.name.trim() || 'BeatVox' });
+  }
+  /** stems: as partes que existem, cada uma com os seus envios para os efeitos */
+  function stemParts() {
+    const out = [];
+    if (hasDrums()) out.push(['bateria', { drums: 1 }]);
+    if (hasLead()) out.push(['melodia', { lead: 1 }]);
+    if (bassNotes().length) out.push(['808', { bass: 1 }]);
+    if (mixVoices().length) out.push(['voz', { voices: 1 }]);
+    return out;
+  }
+  /** Os stems têm a mesma duração e o mesmo ponto de partida que a mistura, e o mesmo ganho entre si:
+      postos lado a lado num DAW somam a mistura (antes do compressor do master). */
+  async function stemFiles(dir = '') {
+    const rs = [];
+    for (const [nome, parts] of stemParts()) rs.push([nome, await engine.render(renderOpts(parts, { master: false, raw: true }))]);
+    let pk = 0;
+    for (const [, r] of rs) for (const ch of r.channels) for (let i = 0; i < ch.length; i++) { const a = Math.abs(ch[i]); if (a > pk) pk = a; }
+    const g = pk > 0.89 ? 0.89 / pk : 1;
+    return rs.map(([nome, r]) => {
+      if (g !== 1) for (const ch of r.channels) for (let i = 0; i < ch.length; i++) ch[i] *= g;
+      return { name: `${dir}${fileBase()}-${nome}.wav`, data: BV.encodeWav({ ...r, name: `${state.name.trim() || 'BeatVox'} (${nome})` }) };
     });
-    return BV.encodeWav(r);
   }
   async function busyExport(label, fn) {
     if (rendering) return;
@@ -4950,17 +5681,15 @@ dialog::backdrop { background: rgba(8, 2, 4, 0.65); backdrop-filter: blur(4px); 
     try { await fn(); } catch (e) { console.error(e); setStatus('Não consegui criar o ficheiro: ' + ((e && e.message) || e), 'err'); }
     finally { rendering = false; updateButtons(); }
   }
+  const loopTxt = () => `${state.bars * state.loops} ${state.bars * state.loops === 1 ? 'compasso' : 'compassos'} a ${state.bpm} BPM`;
   const exportWav = () => busyExport('A renderizar o áudio…', async () => {
-    await download(new Blob([await wavBytes('mix')], { type: 'audio/wav' }), `${fileBase()}.wav`);
-    if (!EMBEDDED) setStatus('WAV descarregado.', 'ok');
+    await download(new Blob([await wavMix()], { type: 'audio/wav' }), `${fileBase()}.wav`);
+    if (!EMBEDDED) setStatus(`WAV descarregado: ${loopTxt()}, a começar no tempo 1 e pronto a dar a volta em loop.`, 'ok');
   });
   const exportStems = () => busyExport('A renderizar os stems…', async () => {
-    const files = [];
-    if (hasDrums()) files.push({ name: `${fileBase()}-bateria.wav`, data: await wavBytes('drums') });
-    if (hasLead()) files.push({ name: `${fileBase()}-melodia.wav`, data: await wavBytes('lead') });
-    if (bassNotes().length) files.push({ name: `${fileBase()}-808.wav`, data: await wavBytes('bass') });
+    const files = await stemFiles();
     await download(new Blob([BV.zip.store(files)], { type: 'application/zip' }), `${fileBase()}-stems.zip`);
-    if (!EMBEDDED) setStatus('Stems descarregados (zip com ' + files.length + ' WAV).', 'ok');
+    if (!EMBEDDED) setStatus(`Stems descarregados (${files.length} WAV, ${loopTxt()}, todos alinhados).`, 'ok');
   });
 
   // projeto: notas e definições em JSON (sem as gravações da voz)
@@ -5106,12 +5835,8 @@ dialog::backdrop { background: rgba(8, 2, 4, 0.65); backdrop-filter: blur(4px); 
     if (hasDrums()) add(`midi/${fileBase()}-bateria.mid`, midiBytes('drums'));
     if (hasLead()) add(`midi/${fileBase()}-melodia.mid`, midiBytes('lead'));
     if (bassNotes().length) add(`midi/${fileBase()}-808.mid`, midiBytes('bass'));
-    add(`${fileBase()}.wav`, await wavBytes('mix'));
-    if (hasDrums() && hasLead()) {
-      add(`stems/${fileBase()}-bateria.wav`, await wavBytes('drums'));
-      add(`stems/${fileBase()}-melodia.wav`, await wavBytes('lead'));
-      if (bassNotes().length) add(`stems/${fileBase()}-808.wav`, await wavBytes('bass'));
-    }
+    add(`${fileBase()}.wav`, await wavMix());
+    if (stemParts().length >= 2) for (const f of await stemFiles('stems/')) files.push(f);
     const cv = document.createElement('canvas'); cv.width = cv.height = 1600; drawCover(cv);
     const png = await new Promise((r) => cv.toBlob(r));
     add(`${slug()}-capa.png`, new Uint8Array(await png.arrayBuffer()));
@@ -5166,6 +5891,14 @@ dialog::backdrop { background: rgba(8, 2, 4, 0.65); backdrop-filter: blur(4px); 
   const MX = BV.mix, ST = BV.stage3d;
   const MIXEL = MX.elements();
   const elInfo = (id) => MIXEL.find((e) => e.id === id) || { id, nome: id, cor: '#d8b57a' };
+  const fxOf = (id) => state.mix.fx.find((f) => f.id === id);
+  /** nome de um efeito: "Reverb", ou "Reverb 2" se houver mais do que um do mesmo tipo */
+  function fxName(f) {
+    const same = state.mix.fx.filter((x) => x.type === f.type);
+    return MX.FX_TYPES[f.type].nome + (same.length > 1 ? ' ' + (same.indexOf(f) + 1) : '');
+  }
+  const nameOf = (id) => (id === 'master' ? 'Master' : fxOf(id) ? fxName(fxOf(id)) : elInfo(id).nome);
+  const colorOf = (id) => (id === 'master' ? '#d8b57a' : fxOf(id) ? MX.FX_TYPES[fxOf(id).type].cor : elInfo(id).cor);
 
   /** 808: uma nota em cada bombo, no tom da melodia (segue a nota da melodia que estiver a tocar) */
   function bassNotes() {
@@ -5223,19 +5956,77 @@ dialog::backdrop { background: rgba(8, 2, 4, 0.65); backdrop-filter: blur(4px); 
       for (const id of visibleEls()) {
         const key = profKey(id), old = profiles.get(id);
         if (old && old.key === key) continue;
-        // só este som, no centro, sem envios: interessa a forma do espetro
+        // só este som, no centro, sem efeitos: interessa a forma do espetro
         const mix = JSON.parse(JSON.stringify(state.mix));
-        for (const k in mix.els) Object.assign(mix.els[k], { mute: k !== id, solo: false, vol: 0, pan: 0, rev: 0, dly: 0 });
-        const r = await engine.render({ bpm: state.bpm, stepsPerBeat: stepsPerBeat(), totalSteps: totalSteps(), loops: 1, leadPreset: state.lead.preset, mix, raw: true, ...elNotes(id) });
+        for (const k in mix.els) Object.assign(mix.els[k], { mute: k !== id, solo: false, vol: 0, pan: 0, dry: true, sends: {} });
+        const r = await engine.render({ bpm: state.bpm, stepsPerBeat: stepsPerBeat(), totalSteps: totalSteps(), loops: 1, leadPreset: state.lead.preset, mix, raw: true, master: false, preroll: false, ...elNotes(id) });
         const pr = MX.spectrumProfile(r.channels, r.sr);
         if (pr) profiles.set(id, { key, ...pr });
         mixNodes();
       }
     } catch (e) { console.warn('BeatVox: perfil de espetro', e); }
     profBusy = false;
+    refreshPresence();
+  }
+  /** atualiza só o espetro no painel (sem redesenhar os controlos, que podem estar a ser arrastados) */
+  function refreshPresence() {
+    const box = $('mixInsp');
+    if (!mixSel || mixSel.includes('>') || fxOf(mixSel) || box.hidden) return;
+    const pr = profiles.get(mixSel), old = box.querySelector('.presence, .mx-pres-wait'), hint = box.querySelector('.mx-centro');
+    if (old) old.outerHTML = presenceHtml(mixSel);
+    if (hint && pr) hint.textContent = centroTxt(pr);
   }
 
-  // ---- nós do palco ----
+  // ---- conflitos de frequência ----
+  const zOfVol = (db) => (Math.max(-30, Math.min(6, db)) + 30) / 36 * 2 - 1;
+  /** em que passos cada som está a soar (para saber se dois sons tocam ao mesmo tempo) */
+  function activity(id) {
+    const n = totalSteps(), a = new Uint8Array(n), o = elNotes(id);
+    if (!o) return a;
+    if (o.voices) { a.fill(1); return a; }
+    const ring = Math.max(1, stepsPerBeat() / 2), len = { kick: 2, snare: 2, clap: 2, hat: 1, openhat: 3 };
+    for (const x of o.drums || []) for (let k = 0; k < Math.round((len[x.drum] || 1) * ring); k++) a[(x.step + k) % n] = 1;
+    for (const x of (o.lead || []).concat(o.bass || [])) for (let k = 0; k < x.len; k++) a[(x.step + k) % n] = 1;
+    return a;
+  }
+  const bandShare = (pr, b, i) => (b.of ? b.of.reduce((t, j) => t + pr.share[j], 0) : pr.share[i]);
+  /** dois sons com muita energia na mesma camada, perto um do outro no palco e a tocar ao mesmo tempo */
+  function findConflicts(ids) {
+    const bands = state.mix.dims === 6 ? MX.BANDS6 : MX.BANDS3, out = [];
+    const anySolo = ids.some((id) => state.mix.els[id].solo);
+    const live = ids.filter((id) => {
+      const e = state.mix.els[id];
+      return profiles.get(id) && !e.mute && (!anySolo || e.solo) && (e.dry !== false || Object.values(e.sends).some((v) => v > 0.005));
+    });
+    const act = new Map(live.map((id) => [id, activity(id)]));
+    for (let i = 0; i < live.length; i++) for (let j = i + 1; j < live.length; j++) {
+      const A = live[i], B = live[j], ea = state.mix.els[A], eb = state.mix.els[B];
+      const d = Math.hypot((ea.pan - eb.pan) * 1.5, (zOfVol(ea.vol) - zOfVol(eb.vol)) * 1.35);
+      if (d > 0.6) continue;
+      const xa = act.get(A), xb = act.get(B);
+      let both = 0, na = 0, nb = 0;
+      for (let k = 0; k < xa.length; k++) { na += xa[k]; nb += xb[k]; both += xa[k] & xb[k]; }
+      const co = both / Math.max(1, Math.min(na, nb));
+      if (co < 0.5) continue;
+      bands.forEach((b, bi) => {
+        const sa = bandShare(profiles.get(A), b, bi), sb = bandShare(profiles.get(B), b, bi);
+        if (sa < 0.35 || sb < 0.35) return;
+        out.push({ a: A, b: B, band: bi, nome: b.nome, sev: Math.min(1, Math.min(sa, sb) * co * (1 - d / 0.6) * 2.5) });
+      });
+    }
+    return out;
+  }
+  let mixConflicts = [];
+
+  // ---- nós e ligações do palco ----
+  /** posição dos efeitos: atrás e por cima das camadas, ou onde os arrastaste */
+  function fxPos(f, i, n) {
+    let h = 0; for (const ch of f.id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+    const y = 2.4 + (h % 3) * 0.16;
+    if (f.pos) return { x: f.pos.x, y, z: f.pos.z };
+    return { x: n === 1 ? -2.05 : -2.05 + 4.1 * (i / (n - 1)), y, z: -1.5 - (i % 2) * 0.3 };
+  }
+  const hasOut = (e) => e.dry !== false || Object.values(e.sends).some((v) => v > 0.005);
   function mixNodes() {
     if (!ST) return;
     const ids = visibleEls();
@@ -5245,20 +6036,41 @@ dialog::backdrop { background: rgba(8, 2, 4, 0.65); backdrop-filter: blur(4px); 
       const e = state.mix.els[id], info = elInfo(id), pr = profiles.get(id);
       return {
         id, nome: info.nome, cor: info.cor, vol: e.vol, pan: e.pan,
-        muted: e.mute || (anySolo && !e.solo),
+        muted: e.mute || (anySolo && !e.solo), dry: e.dry !== false, silent: !hasOut(e),
         share: pr ? pr.share : null, centroid: pr ? pr.centroid : { kick: 70, bass: 70, snare: 1500, clap: 1600, hat: 9000, openhat: 8500, lead: 900 }[id] || 1000,
-        sends: { rev: e.rev, dly: e.dly },
+        sends: { ...e.sends },
       };
     });
-    ST.fx = [
-      { id: 'rev', nome: 'Reverb', cor: '#b9a6d6', p: { x: -2.05, y: 2.4, z: -1.5 } },
-      { id: 'dly', nome: 'Delay', cor: '#8fc1b5', p: { x: 2.05, y: 2.4, z: -1.5 } },
-    ];
+    const n = state.mix.fx.length;
+    ST.fx = state.mix.fx.map((f, i) => ({ id: f.id, nome: fxName(f), cor: MX.FX_TYPES[f.type].cor, p: fxPos(f, i, n), on: f.on, out: f.out }));
+    mixConflicts = findConflicts(ids);
+    ST.conflicts = mixConflicts;
     ST.empty = ids.length ? '' : 'Grava a bateria ou a melodia para as veres aqui.';
+  }
+  const pctTxt = (v) => Math.round(v * 100) + '%';
+  const dbTxt = (v) => (v > 0 ? '+' : '') + (Math.round(v * 10) / 10).toString().replace('.', ',') + ' dB';
+  const panTxt = (v) => (Math.abs(v) < 0.02 ? 'centro' : (v < 0 ? 'E ' : 'D ') + Math.round(Math.abs(v) * 100));
+  /** ligações: "som>master" (saída direta), "som>efeito" (envio), "efeito>destino" */
+  function edgeValid(key) {
+    const [a, b] = key.split('>');
+    const f = fxOf(a);
+    if (f) return f.out === b || (b === 'master' && !fxOf(f.out));
+    const e = state.mix.els[a];
+    if (!e || !visibleEls().includes(a)) return false;
+    return b === 'master' ? e.dry !== false : (e.sends[b] || 0) > 0.005 && !!fxOf(b);
+  }
+  function unlink(key) {
+    const [a, b] = key.split('>');
+    const f = fxOf(a);
+    if (f) { f.out = 'master'; return; }
+    const e = state.mix.els[a];
+    if (!e) return;
+    if (b === 'master') e.dry = false; else delete e.sends[b];
   }
   if (ST) {
     ST.getLevel = (id) => (engine.mixer && engine.playing ? engine.mixer.level(id) : 0);
-    ST.onSelect = (id) => { mixSel = id; renderInsp(); };
+    ST.onSelect = (id) => { selectMix(id); };
+    ST.onSelectEdge = (key) => { selectMix(key); };
     ST.onDrag = (id, pan, vol) => {
       const e = state.mix.els[id];
       if (!e) return;
@@ -5267,8 +6079,59 @@ dialog::backdrop { background: rgba(8, 2, 4, 0.65); backdrop-filter: blur(4px); 
       if (mixSel === id) syncInspValues();
     };
     ST.onDragEnd = () => persist();
+    ST.onMoveFx = (id, x, z) => {
+      const f = fxOf(id);
+      if (!f) return;
+      f.pos = { x: Math.round(x * 100) / 100, z: Math.round(z * 100) / 100 };
+      mixNodes(); clearTimeout(persistT); persistT = setTimeout(persist, 400);
+    };
+    ST.onConnect = (from, to) => {
+      const f = fxOf(from);
+      if (f) {
+        if (!MX.canRoute(state.mix, from, to)) { setStatus('Essa ligação fazia um ciclo: o som voltava ao mesmo efeito.', 'err'); return; }
+        f.out = to;
+        setStatus(`${fxName(f)} → ${nameOf(to)}.`, 'ok');
+      } else {
+        const e = state.mix.els[from];
+        if (!e) return;
+        if (to === 'master') e.dry = true;
+        else if (!((e.sends[to] || 0) > 0.005)) e.sends[to] = 0.5;
+        setStatus(`${nameOf(from)} → ${nameOf(to)}${to === 'master' ? ' (saída direta)' : ': envio a ' + pctTxt(e.sends[to])}.`, 'ok');
+      }
+      mixChanged(false);
+      selectMix(from + '>' + to);
+    };
+    ST.onToggle = (id) => {
+      const f = fxOf(id);
+      if (f) { f.on = !f.on; setStatus(`${fxName(f)} ${f.on ? 'ligado' : 'desligado'}.`); }
+      else if (state.mix.els[id]) { const e = state.mix.els[id]; e.mute = !e.mute; restartIfPlaying(); setStatus(`${nameOf(id)} ${e.mute ? 'em mudo' : 'de volta à mistura'}.`); }
+      mixChanged(false); renderInsp();
+    };
+    ST.onPreset = (name) => syncViewSeg(name);
+    ST.describe = (id) => {
+      const f = fxOf(id);
+      if (f) {
+        const ins = visibleEls().filter((k) => (state.mix.els[k].sends[id] || 0) > 0.005).map(nameOf);
+        return [fxName(f) + (f.on ? '' : ' (desligado)'), ins.length ? 'Recebe: ' + ins.join(', ') : 'Ainda ninguém lhe envia som', 'Saída: ' + nameOf(f.out), 'Duplo clique: ' + (f.on ? 'desligar' : 'ligar')];
+      }
+      const e = state.mix.els[id];
+      if (!e) return null;
+      const sends = Object.entries(e.sends).filter(([k, v]) => v > 0.005 && fxOf(k)).map(([k, v]) => `${nameOf(k)} ${pctTxt(v)}`);
+      const cf = mixConflicts.filter((k) => k.a === id || k.b === id).map((k) => `Disputa os ${k.nome.toLowerCase()} com ${nameOf(k.a === id ? k.b : k.a)}`);
+      return [nameOf(id) + (e.mute ? ' (mudo)' : ''), `${dbTxt(e.vol)} · ${panTxt(e.pan)}`, (e.dry === false ? 'Sem saída direta' : 'Saída direta') + (sends.length ? ' · ' + sends.join(' · ') : ''), ...cf, 'Duplo clique: ' + (e.mute ? 'tirar do mudo' : 'silenciar')];
+    };
+    ST.describeEdge = (key) => {
+      const [a, b] = key.split('>'), e = state.mix.els[a];
+      const what = fxOf(a) ? 'Saída do efeito' : b === 'master' ? 'Saída direta' : 'Envio ' + pctTxt(e ? e.sends[b] || 0 : 0);
+      return [`${nameOf(a)} → ${nameOf(b)}`, what, 'Clica para ajustar ou desligar'];
+    };
   }
   let mixSel = null, persistT = 0;
+  function selectMix(id) {
+    mixSel = id;
+    closeFxMenu();
+    renderInsp();
+  }
   function mixChanged(reprofile) {
     engine.setMix(state.mix, state.bpm);
     clearTimeout(persistT); persistT = setTimeout(persist, 400);
@@ -5276,64 +6139,100 @@ dialog::backdrop { background: rgba(8, 2, 4, 0.65); backdrop-filter: blur(4px); 
     if (reprofile) scheduleProfiles();
   }
 
-  // ---- inspetor ----
-  const dbTxt = (v) => (v > 0 ? '+' : '') + (Math.round(v * 10) / 10).toString().replace('.', ',') + ' dB';
-  const panTxt = (v) => (Math.abs(v) < 0.02 ? 'centro' : (v < 0 ? 'E ' : 'D ') + Math.round(Math.abs(v) * 100));
-  const pctTxt = (v) => Math.round(v * 100) + '%';
+  // ---- painel de ajustes (só aparece com um som, um efeito ou uma ligação escolhidos) ----
   function sliderRow(k, nome, min, max, step, val, txt) {
-    return `<label class="mx-row"><span class="mx-l">${nome}</span><input type="range" data-k="${k}" min="${min}" max="${max}" step="${step}" value="${val}" aria-label="${nome}" /><output data-o="${k}">${txt}</output></label>`;
+    return `<label class="mx-row"><span class="mx-l">${nome}</span><input type="range" data-k="${k}" min="${min}" max="${max}" step="${step}" value="${val}" aria-label="${nome.replace(/<[^>]*>/g, '')}" /><output data-o="${k}">${txt}</output></label>`;
   }
+  const dot = (id) => `<i style="--c:${colorOf(id)}"></i>`;
+  const closeBtn = '<button class="mx-close icon-btn" data-close title="Fechar (Esc)" aria-label="Fechar"><svg><use href="#i-x"/></svg></button>';
   function presenceHtml(id) {
     const pr = profiles.get(id), bands = state.mix.dims === 6 ? MX.BANDS6 : MX.BANDS3;
-    if (!pr) return '<p class="hint">A medir o espetro…</p>';
-    const shares = bands.map((b, i) => (b.of ? b.of.reduce((s, j) => s + pr.share[j], 0) : pr.share[i]));
+    if (!pr) return '<p class="hint mx-pres-wait">A medir o espetro…</p>';
+    const shares = bands.map((b, i) => bandShare(pr, b, i));
     const max = Math.max(...shares, 1e-9);
     return `<div class="presence" style="--n:${bands.length}">${bands.map((b, i) => {
       const lit = Math.round((shares[i] / max) * 8);
       return `<div class="pcol" title="${b.nome}: ${Math.round(shares[i] * 100)}%"><div class="pleds">${Array.from({ length: 8 }, (_, k) => `<i class="${k < lit ? 'on' : ''}"></i>`).join('')}</div><span>${b.nome.replace('Médios-graves', 'M-graves')}</span></div>`;
     }).join('')}</div>`;
   }
+  function paramRow(prefix, q, v) {
+    if (q.kind === 'seg') return `<div class="mx-row"><span class="mx-l">${q.nome}</span><div class="seg" data-seg="${prefix}${q.id}">${q.opts.map(([ov, n]) => `<button data-v="${ov}" class="${String(v) === String(ov) ? 'on' : ''}">${n}</button>`).join('')}</div></div>`;
+    if (q.kind === 'toggle') return `<div class="mx-row"><span class="mx-l">${q.nome}</span><label class="switch mx-sw"><input type="checkbox" data-k="${prefix}${q.id}" ${v ? 'checked' : ''} aria-label="${q.nome}" /><i></i></label></div>`;
+    return sliderRow(prefix + q.id, q.nome, q.min, q.max, q.step, v, q.fmt(v));
+  }
   function renderInsp() {
     const box = $('mixInsp');
     if (!box) return;
-    const ids = visibleEls();
-    if (mixSel === 'rev' || mixSel === 'dly') {
-      const fx = state.mix.fx;
-      box.innerHTML = `<button class="mx-back" data-back>← Todos os sons</button>
-        <div class="mx-title"><i style="--c:${mixSel === 'rev' ? '#b9a6d6' : '#8fc1b5'}"></i><b>${mixSel === 'rev' ? 'Reverb' : 'Delay'}</b></div>
-        <p class="hint">${mixSel === 'rev' ? 'A sala onde os sons tocam. Cada som envia mais ou menos para aqui (envio Reverb).' : 'Eco no tempo do beat. Cada som envia mais ou menos para aqui (envio Delay).'}</p>
-        <div class="mx-sec">${mixSel === 'rev'
-          ? sliderRow('fx.rev.size', 'Tamanho', 0.4, 6, 0.1, fx.rev.size, fx.rev.size.toFixed(1).replace('.', ',') + ' s') + sliderRow('fx.rev.level', 'Nível', 0, 1.5, 0.01, fx.rev.level, pctTxt(fx.rev.level))
-          : `<div class="mx-row"><span class="mx-l">Tempo</span><div class="seg" id="dlyDiv">${MX.DIV.map((d) => `<button data-v="${d.v}" class="${fx.dly.div === d.v ? 'on' : ''}">${d.nome}</button>`).join('')}</div></div>` +
-            sliderRow('fx.dly.fb', 'Repetições', 0, 0.85, 0.01, fx.dly.fb, pctTxt(fx.dly.fb)) + sliderRow('fx.dly.level', 'Nível', 0, 1.5, 0.01, fx.dly.level, pctTxt(fx.dly.level))}</div>`;
-      return;
-    }
-    if (!mixSel || !ids.includes(mixSel)) {
-      mixSel = null;
-      box.innerHTML = `<div class="mx-title"><b>Sons</b></div>
-        <p class="hint">Escolhe um som (aqui ou no palco) para mexer no volume, pan, EQ, timbre e efeitos.</p>
-        <ul class="mx-list">${ids.map((id) => {
-          const e = state.mix.els[id], info = elInfo(id);
-          return `<li><button class="mx-item" data-sel="${id}"><i style="--c:${info.cor}"></i>${info.nome}<span>${e.mute ? 'mudo' : dbTxt(e.vol)}</span></button>
-            <button class="ms ${e.mute ? 'on' : ''}" data-mute="${id}" title="Silenciar">M</button><button class="ms ${e.solo ? 'on solo' : ''}" data-solo="${id}" title="Solo">S</button></li>`;
-        }).join('') || '<li class="hint">Ainda não há sons.</li>'}</ul>
-        <ul class="mx-list fxl"><li><button class="mx-item" data-sel="rev"><i style="--c:#b9a6d6"></i>Reverb<span>FX</span></button></li><li><button class="mx-item" data-sel="dly"><i style="--c:#8fc1b5"></i>Delay<span>FX</span></button></li></ul>`;
-      return;
-    }
-    const e = state.mix.els[mixSel], info = elInfo(mixSel), pr = profiles.get(mixSel);
-    const params = MX.PARAMS[mixSel] || [];
-    const voiceNote = mixSel === 'vdrums' || mixSel === 'vlead' ? '<p class="hint">A tua gravação. Começa fora da mistura: tira o "M" para a juntares ao beat.</p>' : '';
-    box.innerHTML = `<button class="mx-back" data-back>← Todos os sons</button>
-      <div class="mx-title"><i style="--c:${info.cor}"></i><b>${info.nome}</b>
-        <span class="mx-ms"><button class="ms ${e.mute ? 'on' : ''}" data-mute="${mixSel}" title="Silenciar">M</button><button class="ms ${e.solo ? 'on solo' : ''}" data-solo="${mixSel}" title="Solo">S</button></span></div>
-      ${pr ? `<p class="hint">Centro em ${pr.centroid >= 1000 ? (pr.centroid / 1000).toFixed(1).replace('.', ',') + ' kHz' : Math.round(pr.centroid) + ' Hz'}. Presença em cada dimensão:</p>` : ''}
-      ${presenceHtml(mixSel)}${voiceNote}
+    if (mixSel && (mixSel.includes('>') ? !edgeValid(mixSel) : !fxOf(mixSel) && !visibleEls().includes(mixSel))) mixSel = null;
+    const was = !box.hidden;
+    box.hidden = !mixSel;
+    if (ST) { ST.selected = mixSel && !mixSel.includes('>') ? mixSel : null; ST.selEdge = mixSel && mixSel.includes('>') ? mixSel : null; }
+    if (was !== !box.hidden) setTimeout(mixView, 0);
+    if (!mixSel) { box.innerHTML = ''; return; }
+    if (mixSel.includes('>')) renderEdgeInsp(box);
+    else if (fxOf(mixSel)) renderFxInsp(box);
+    else renderElInsp(box);
+  }
+  const centroTxt = (pr) => `Centro em ${pr.centroid >= 1000 ? (pr.centroid / 1000).toFixed(1).replace('.', ',') + ' kHz' : Math.round(pr.centroid) + ' Hz'}. Presença em cada dimensão:`;
+  function renderElInsp(box) {
+    const id = mixSel, e = state.mix.els[id], info = elInfo(id), pr = profiles.get(id);
+    const params = MX.PARAMS[id] || [];
+    const voiceNote = id === 'vdrums' || id === 'vlead' ? '<p class="hint">A tua gravação. Começa fora da mistura: tira o "M" (ou faz duplo clique no nó) para a juntares ao beat.</p>' : '';
+    const cf = mixConflicts.filter((k) => k.a === id || k.b === id);
+    const cfHtml = cf.map((k) => {
+      const other = k.a === id ? k.b : k.a;
+      return `<div class="mx-warn"><p><b>Disputa os ${k.nome.toLowerCase()} com ${nameOf(other)}.</b> Tocam ao mesmo tempo e estão no mesmo sítio do palco.</p>
+        <div class="mx-warn-btns"><button class="btn small ghost" data-fix="eq" data-band="${k.band}">Cortar ${k.nome.toLowerCase()} −4 dB</button><button class="btn small ghost" data-fix="pan" data-other="${other}">Afastar no pan</button></div></div>`;
+    }).join('');
+    const fxRows = state.mix.fx.map((f) => sliderRow('send.' + f.id, `${dot(f.id)}${fxName(f)}`, 0, 1, 0.01, e.sends[f.id] || 0, pctTxt(e.sends[f.id] || 0))).join('');
+    box.innerHTML = `<div class="mx-title">${dot(id)}<b>${info.nome}</b>
+        <span class="mx-ms"><button class="ms ${e.mute ? 'on' : ''}" data-mute="${id}" title="Silenciar (M)">M</button><button class="ms ${e.solo ? 'on solo' : ''}" data-solo="${id}" title="Solo (S)">S</button></span>${closeBtn}</div>
+      ${cfHtml}
+      <p class="hint mx-centro">${pr ? centroTxt(pr) : ''}</p>
+      ${presenceHtml(id)}${voiceNote}
       <div class="mx-sec">${sliderRow('vol', 'Volume', -30, 6, 0.5, e.vol, dbTxt(e.vol))}${sliderRow('pan', 'Pan', -1, 1, 0.01, e.pan, panTxt(e.pan))}</div>
       <div class="mx-sec"><span class="g-label">EQ</span>${['Graves', 'Médios', 'Agudos'].map((n, i) => sliderRow('eq' + i, n, -12, 12, 0.5, e.eq[i], dbTxt(e.eq[i]))).join('')}</div>
-      ${params.length || mixSel === 'lead' ? `<div class="mx-sec"><span class="g-label">Som</span>${mixSel === 'lead'
+      ${params.length || id === 'lead' ? `<div class="mx-sec"><span class="g-label">Som</span>${id === 'lead'
         ? `<div class="mx-row"><span class="mx-l">Timbre</span><div class="seg" id="mxPreset">${[['synth', 'Synth'], ['pluck', 'Pluck'], ['sine', 'Suave']].map(([v, n]) => `<button data-v="${v}" class="${state.lead.preset === v ? 'on' : ''}">${n}</button>`).join('')}</div></div>`
         : params.map((q) => sliderRow('p.' + q.id, q.nome, q.min, q.max, q.step, e.p[q.id], q.fmt(e.p[q.id]))).join('')}</div>` : ''}
-      <div class="mx-sec"><span class="g-label">Envios</span>${sliderRow('rev', 'Reverb', 0, 1, 0.01, e.rev, pctTxt(e.rev))}${sliderRow('dly', 'Delay', 0, 1, 0.01, e.dly, pctTxt(e.dly))}</div>`;
+      <div class="mx-sec"><span class="g-label">Saídas</span>
+        <div class="mx-row"><span class="mx-l">${dot('master')}Master</span><label class="switch mx-sw" title="Saída direta para o master. Desliga-a para o som só se ouvir através dos efeitos."><input type="checkbox" data-k="dry" ${e.dry !== false ? 'checked' : ''} aria-label="Saída direta para o master" /><i></i></label></div>
+        ${fxRows}
+        <button class="btn small ghost mx-add" data-addfor="${id}">+ Efeito para este som</button>
+        ${!hasOut(e) ? '<p class="hint mx-err">Sem saída: este som não se ouve. Liga a saída direta ou envia-o para um efeito.</p>' : ''}
+      </div>`;
+  }
+  function renderFxInsp(box) {
+    const f = fxOf(mixSel), T = MX.FX_TYPES[f.type];
+    const targets = ['master', ...state.mix.fx.filter((x) => x.id !== f.id && MX.canRoute(state.mix, f.id, x.id)).map((x) => x.id)];
+    const ins = visibleEls();
+    box.innerHTML = `<div class="mx-title">${dot(f.id)}<b>${fxName(f)}</b>${closeBtn}</div>
+      <p class="hint">${T.dica}</p>
+      <div class="mx-row"><span class="mx-l">Ligado</span><label class="switch mx-sw" title="Ligar ou desligar (duplo clique no nó)"><input type="checkbox" data-k="fxon" ${f.on ? 'checked' : ''} aria-label="Ligado" /><i></i></label></div>
+      <div class="mx-sec">${T.params.map((q) => paramRow('fxp.', q, f.p[q.id])).join('')}</div>
+      <div class="mx-sec"><span class="g-label">Entradas</span>
+        ${ins.map((id) => sliderRow('in.' + id, `${dot(id)}${nameOf(id)}`, 0, 1, 0.01, state.mix.els[id].sends[f.id] || 0, pctTxt(state.mix.els[id].sends[f.id] || 0))).join('') || '<p class="hint">Ainda não há sons.</p>'}
+        <p class="hint">Ou arrasta o <b>+</b> de um som até este efeito.</p>
+      </div>
+      <div class="mx-sec"><span class="g-label">Saída</span>
+        <div class="seg mx-outs" data-out>${targets.map((t) => `<button data-v="${t}" class="${f.out === t ? 'on' : ''}">${nameOf(t)}</button>`).join('')}</div>
+      </div>
+      <button class="btn small ghost mx-remove" data-rmfx="${f.id}">Remover efeito</button>`;
+  }
+  function renderEdgeInsp(box) {
+    const [a, b] = mixSel.split('>'), f = fxOf(a), e = state.mix.els[a];
+    let body;
+    if (f) body = `<p class="hint">A saída de ${fxName(f)} vai para ${nameOf(b)}. Arrasta o <b>+</b> do efeito para outro efeito para os encadear.</p>`;
+    else if (b === 'master') body = `<p class="hint">Saída direta do som para o master. Desliga-a para o som só se ouvir através dos efeitos (como num insert).</p>`;
+    else body = `<div class="mx-sec">${sliderRow('edge', 'Envio', 0, 1, 0.01, e.sends[b] || 0, pctTxt(e.sends[b] || 0))}</div><p class="hint">Quanto deste som vai para ${nameOf(b)} (depois do volume e do pan).</p>`;
+    const canUnlink = !(f && b === 'master');
+    box.innerHTML = `<div class="mx-title mx-edge">${dot(a)}<b>${nameOf(a)}</b><span class="arrow">→</span>${dot(b)}<b>${nameOf(b)}</b>${closeBtn}</div>
+      ${body}
+      <div class="mx-btns">
+        ${canUnlink ? `<button class="btn small" data-unlink>Desligar</button>` : ''}
+        <button class="btn small ghost" data-sel="${a}">Abrir ${nameOf(a)}</button>
+        ${b !== 'master' ? `<button class="btn small ghost" data-sel="${b}">Abrir ${nameOf(b)}</button>` : ''}
+      </div>`;
   }
   function syncInspValues() {
     const box = $('mixInsp');
@@ -5344,44 +6243,171 @@ dialog::backdrop { background: rgba(8, 2, 4, 0.65); backdrop-filter: blur(4px); 
   }
   $('mixInsp').addEventListener('input', (e) => {
     const k = e.target.dataset.k;
-    if (!k) return;
+    if (!k || e.target.type === 'checkbox') return;
     const v = +e.target.value, out = $('mixInsp').querySelector(`[data-o="${k}"]`);
-    let reprofile = false, txt = '';
-    if (k.startsWith('fx.')) {
-      const [, f, p] = k.split('.');
-      state.mix.fx[f][p] = v;
-      txt = p === 'size' ? v.toFixed(1).replace('.', ',') + ' s' : pctTxt(v);
-    } else {
-      const el = state.mix.els[mixSel];
+    let reprofile = false, txt = pctTxt(v);
+    const el = state.mix.els[mixSel], f = fxOf(mixSel);
+    if (k.startsWith('fxp.') && f) {
+      const q = MX.FX_TYPES[f.type].params.find((x) => 'fxp.' + x.id === k);
+      f.p[q.id] = v; txt = q.fmt(v);
+    } else if (k.startsWith('in.') && f) {
+      const src = state.mix.els[k.slice(3)];
+      if (src) { if (v > 0) src.sends[f.id] = v; else delete src.sends[f.id]; }
+    } else if (k === 'edge') {
+      const [a, b] = mixSel.split('>');
+      if (state.mix.els[a]) state.mix.els[a].sends[b] = v;
+    } else if (el) {
       if (k === 'vol') { el.vol = v; txt = dbTxt(v); }
       else if (k === 'pan') { el.pan = v; txt = panTxt(v); }
       else if (k.startsWith('eq')) { el.eq[+k[2]] = v; txt = dbTxt(v); reprofile = true; }
-      else if (k === 'rev' || k === 'dly') { el[k] = v; txt = pctTxt(v); }
+      else if (k.startsWith('send.')) { const id = k.slice(5); if (v > 0) el.sends[id] = v; else delete el.sends[id]; }
       else if (k.startsWith('p.')) { const q = (MX.PARAMS[mixSel] || []).find((x) => 'p.' + x.id === k); el.p[q.id] = v; txt = q.fmt(v); reprofile = true; }
     }
     if (out) out.textContent = txt;
     mixChanged(reprofile);
   });
-  $('mixInsp').addEventListener('change', (e) => { if (e.target.dataset.k) renderInsp(); });
+  $('mixInsp').addEventListener('change', (e) => {
+    const k = e.target.dataset.k;
+    if (!k) return;
+    if (e.target.type === 'checkbox') {
+      const on = e.target.checked, f = fxOf(mixSel);
+      if (k === 'dry' && state.mix.els[mixSel]) state.mix.els[mixSel].dry = on;
+      else if (k === 'fxon' && f) f.on = on;
+      else if (k.startsWith('fxp.') && f) f.p[k.slice(4)] = on ? 1 : 0;
+      mixChanged(false);
+    }
+    renderInsp();
+  });
   $('mixInsp').addEventListener('click', (e) => {
     const b = e.target.closest('button');
     if (!b) return;
-    if (b.dataset.back != null) { mixSel = null; if (ST) ST.selected = null; renderInsp(); return; }
-    if (b.dataset.sel) { mixSel = b.dataset.sel; if (ST) ST.selected = mixSel; renderInsp(); return; }
+    const f = fxOf(mixSel);
+    if (b.dataset.close != null) { selectMix(null); return; }
+    if (b.dataset.sel) { selectMix(b.dataset.sel); return; }
     if (b.dataset.mute) { const el = state.mix.els[b.dataset.mute]; el.mute = !el.mute; mixChanged(false); restartIfPlaying(); renderInsp(); return; }
     if (b.dataset.solo) { const el = state.mix.els[b.dataset.solo]; el.solo = !el.solo; mixChanged(false); renderInsp(); return; }
-    if (b.closest('#dlyDiv')) { state.mix.fx.dly.div = +b.dataset.v; mixChanged(false); renderInsp(); return; }
+    if (b.dataset.addfor) { openFxMenu(b.dataset.addfor, b); return; }
+    if (b.dataset.rmfx) { const name = fxName(fxOf(b.dataset.rmfx)); MX.removeFx(state.mix, b.dataset.rmfx); mixChanged(false); selectMix(null); setStatus(`${name} removido.`); return; }
+    if (b.dataset.unlink != null) { unlink(mixSel); const [a] = mixSel.split('>'); mixChanged(false); selectMix(a); setStatus('Ligação desligada.'); return; }
+    if (b.dataset.fix) {
+      const el = state.mix.els[mixSel];
+      if (b.dataset.fix === 'eq') {
+        const bi = +b.dataset.band, idx = state.mix.dims === 6 ? [0, 0, 1, 1, 2, 2][bi] : bi;
+        el.eq[idx] = Math.max(-12, el.eq[idx] - 4);
+        mixChanged(true);
+      } else {
+        const o = state.mix.els[b.dataset.other], side = el.pan <= o.pan ? -1 : 1;
+        el.pan = Math.max(-1, Math.min(1, (Math.abs(el.pan) < 0.3 ? 0.35 : Math.abs(el.pan)) * side));
+        if (Math.abs(o.pan) < 0.3) o.pan = -0.35 * side;
+        mixChanged(false);
+      }
+      renderInsp(); return;
+    }
+    const seg = b.closest('[data-seg]');
+    if (seg && f) {
+      const pid = seg.dataset.seg.replace(/^fxp\./, ''), q = MX.FX_TYPES[f.type].params.find((x) => x.id === pid);
+      const o = q && q.opts.find((x) => String(x[0]) === b.dataset.v);
+      if (o) { f.p[pid] = o[0]; mixChanged(false); renderInsp(); }
+      return;
+    }
+    if (b.closest('[data-out]') && f) {
+      const to = b.dataset.v;
+      if (MX.canRoute(state.mix, f.id, to)) { f.out = to; mixChanged(false); renderInsp(); }
+      return;
+    }
     if (b.closest('#mxPreset')) { state.lead.preset = b.dataset.v; persist(); refresh(); restartIfPlaying(); scheduleProfiles(); renderInsp(); }
   });
-  // zona livre para o palco: entre o título, a barra de baixo e o painel da direita
+
+  // ---- acrescentar efeitos ----
+  const fxMenu = $('fxMenu'), btnAddFx = $('btnAddFx');
+  let addFor = null;
+  fxMenu.innerHTML = MX.FX_ORDER.map((t) => { const T = MX.FX_TYPES[t]; return `<button role="menuitem" data-add="${t}"><i style="--c:${T.cor}"></i><b>${T.nome}</b><span>${T.dica}</span></button>`; }).join('');
+  function openFxMenu(forId = null, anchor = btnAddFx) {
+    addFor = forId;
+    fxMenu.hidden = false;
+    btnAddFx.setAttribute('aria-expanded', 'true');
+    fxMenu.classList.toggle('from-insp', anchor !== btnAddFx);
+    fxMenu.style.left = ''; fxMenu.style.bottom = '';
+    if (anchor !== btnAddFx) { // aberto a partir do painel: aparece por cima do botão que o abriu
+      const r = anchor.getBoundingClientRect(), host = fxMenu.offsetParent.getBoundingClientRect(), mw = fxMenu.offsetWidth;
+      const vx = Math.max(16, Math.min(r.right - mw, innerWidth - mw - 16));
+      fxMenu.style.left = (vx - host.left) + 'px';
+      fxMenu.style.bottom = (host.bottom - r.top + 6) + 'px';
+    }
+    const full = state.mix.fx.length >= MX.MAX_FX;
+    fxMenu.querySelectorAll('button').forEach((b) => (b.disabled = full));
+    if (!full) fxMenu.querySelector('button').focus();
+  }
+  function closeFxMenu() {
+    if (fxMenu.hidden) return;
+    fxMenu.hidden = true;
+    btnAddFx.setAttribute('aria-expanded', 'false');
+  }
+  btnAddFx.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (!fxMenu.hidden) { closeFxMenu(); return; }
+    const sel = mixSel && state.mix.els[mixSel] ? mixSel : null;
+    openFxMenu(sel);
+  });
+  fxMenu.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-add]');
+    if (!b) return;
+    e.stopPropagation();
+    const f = MX.addFx(state.mix, b.dataset.add);
+    closeFxMenu();
+    if (!f) { setStatus(`Já tens ${MX.MAX_FX} efeitos. Remove um para acrescentar outro.`, 'err'); return; }
+    if (addFor && state.mix.els[addFor]) state.mix.els[addFor].sends[f.id] = 0.5;
+    mixChanged(false);
+    selectMix(f.id);
+    setStatus(addFor ? `${fxName(f)} acrescentado e ligado a ${nameOf(addFor)}.` : `${fxName(f)} acrescentado. Arrasta o + de um som até ele para o ligar.`, 'ok');
+  });
+  document.addEventListener('click', (e) => { if (!fxMenu.hidden && !fxMenu.contains(e.target)) closeFxMenu(); });
+
+  // ---- vistas ----
+  function syncViewSeg(name) { $('viewSeg').querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.v === name)); }
+  $('viewSeg').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b || !ST) return;
+    ST.setPreset(b.dataset.v); syncViewSeg(b.dataset.v);
+  });
+
+  // ---- teclado no palco: setas escolhem o nó seguinte, Esc fecha, Delete apaga, M/S mudo e solo ----
+  function mixKey(e) {
+    if (!BV.flow || BV.flow.active !== 4) return false;
+    if (e.target.closest && e.target.closest('input, select, textarea, [contenteditable]')) return false;
+    if (e.key === 'Escape') { if (!fxMenu.hidden) closeFxMenu(); else selectMix(null); return true; }
+    if (!mixSel) return false;
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      if (mixSel.includes('>')) { unlink(mixSel); const [a] = mixSel.split('>'); mixChanged(false); selectMix(a); return true; }
+      if (fxOf(mixSel)) { const name = fxName(fxOf(mixSel)); MX.removeFx(state.mix, mixSel); mixChanged(false); selectMix(null); setStatus(`${name} removido.`); return true; }
+      return false;
+    }
+    const el = state.mix.els[mixSel];
+    if (el && (e.key === 'm' || e.key === 'M')) { el.mute = !el.mute; mixChanged(false); restartIfPlaying(); renderInsp(); return true; }
+    if (el && (e.key === 's' || e.key === 'S')) { el.solo = !el.solo; mixChanged(false); renderInsp(); return true; }
+    return false;
+  }
+  $('stage3d').addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft' || e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      const ids = visibleEls().concat(state.mix.fx.map((f) => f.id));
+      if (!ids.length) return;
+      const i = ids.indexOf(mixSel), d = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : -1;
+      selectMix(ids[i < 0 ? (d > 0 ? 0 : ids.length - 1) : (i + d + ids.length) % ids.length]);
+      setStatus(nameOf(mixSel) + ' selecionado.');
+    }
+  });
+
+  // zona livre para o palco: entre o título, a barra de baixo e o painel da direita (se estiver aberto)
   function mixView() {
     if (!ST) return;
     const cv = $('stage3d'), r = cv.getBoundingClientRect();
     if (!r.width) return;
-    const head = document.querySelector('.mix-head').getBoundingClientRect(), bar = document.querySelector('.mix-bar').getBoundingClientRect(), insp = $('mixInsp').getBoundingClientRect();
+    const head = document.querySelector('.mix-head').getBoundingClientRect(), bar = document.querySelector('.mix-bar').getBoundingClientRect(), insp = $('mixInsp');
     const narrow = innerWidth <= 860;
+    const ir = insp.hidden ? null : insp.getBoundingClientRect();
+    const right = ir && ir.width ? ir.left - r.left - 10 : document.querySelector('.mix-next').getBoundingClientRect().right - r.left - 20;
     ST.setView(narrow ? { x0: 0, y0: head.bottom - r.top, x1: r.width, y1: bar.top - r.top }
-      : { x0: head.left - r.left - 40, y0: head.bottom - r.top - 10, x1: insp.left - r.left - 10, y1: bar.top - r.top - 6 });
+      : { x0: head.left - r.left - 40, y0: head.bottom - r.top - 10, x1: right, y1: bar.top - r.top - 6 });
   }
   addEventListener('resize', () => setTimeout(mixView, 50));
   function mixRefresh() {
@@ -5390,6 +6416,7 @@ dialog::backdrop { background: rgba(8, 2, 4, 0.65); backdrop-filter: blur(4px); 
     renderInsp();
     $('bassOn').checked = state.mix.bassOn;
     $('dimsSeg').querySelectorAll('button').forEach((b) => b.classList.toggle('on', +b.dataset.v === state.mix.dims));
+    syncViewSeg(ST ? ST.preset : 'free');
     scheduleProfiles();
   }
   $('dimsSeg').addEventListener('click', (e) => {
@@ -5403,9 +6430,10 @@ dialog::backdrop { background: rgba(8, 2, 4, 0.65); backdrop-filter: blur(4px); 
   $('btnMixReset').addEventListener('click', () => {
     const keep = { bassOn: state.mix.bassOn, dims: state.mix.dims };
     state.mix = Object.assign(MX.defaultState(), keep);
+    mixSel = null;
     mixChanged(true); renderInsp();
     if (ST) ST.resetView();
-    setStatus('Mistura reposta.', 'ok');
+    setStatus('Mistura reposta: volumes, pan, EQ, sons e efeitos voltaram ao início.', 'ok');
   });
   engine.setMix(state.mix, state.bpm);
 
@@ -5631,6 +6659,7 @@ dialog::backdrop { background: rgba(8, 2, 4, 0.65); backdrop-filter: blur(4px); 
 
   document.addEventListener('keydown', (e) => {
     if (e.target.matches('input[type=number], input[type=text], select, textarea') || $('trainDlg').open || $('calDlg').open) return;
+    if (mixKey(e)) { e.preventDefault(); return; }
     if (e.code === 'Space') { e.preventDefault(); if (!$('btnPlay').disabled || engine.playing) togglePlay(); }
     else if (e.key === 'r' || e.key === 'R') doRecord('pattern');
     else if (e.key === '1') BV.flow ? BV.flow.go(2) : setView('drums');

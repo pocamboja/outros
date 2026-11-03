@@ -32,7 +32,7 @@ O BeatVox é uma peça em 6 movimentos (I a VI). Faz **scroll** (roda do rato, t
 2. **Andamento**: BPM (escreve, usa + e −, ou carrega em *Marcar o tempo* ao ritmo da música), compassos, grelha, clique, auscultadores, **microfone** (escolher e testar) e latência.
 3. **Bateria**: gravar ou abrir áudio, a grelha, treinar a tua voz. Aqui o fundo é um **equalizador 3D de blocos LED** (verde → amarelo → laranja → vermelho) que segue o som: brilha por trás do vidro da grelha quando tocas e, enquanto gravas, aparece inteiro por baixo da contagem a mostrar a tua voz em tempo real. As notas da grelha também são colunas de LEDs: quantos mais blocos acesos, mais forte o golpe.
 4. **Melodia**: gravar por cima do beat, o piano roll, **efeitos da voz**, tom, escala, oitava e som.
-5. **Mistura**: o palco 3D, ver [Mistura](#mistura-o-palco-3d).
+5. **Mistura**: o palco 3D com os sons, os efeitos e as ligações entre eles, ver [Mistura](#mistura-o-palco-3d).
 6. **Exportar**: uma capa para o teu beat (com nome, que podes ouvir ali mesmo) e todas as saídas, ver [Exportar](#exportar).
 
 - A navegação à esquerda (ou à direita, no telemóvel) leva-te a qualquer passo. As teclas `1` e `2` saltam para a Bateria e para a Melodia.
@@ -94,19 +94,47 @@ Nomes das notas: Dó4 = C4 = Dó central (MIDI 60). Atenção: o FL Studio chama
 ## Mistura: o palco 3D
 Cada **camada** é uma dimensão do som: Graves, Médios e Agudos (ou 6 camadas: Sub, Graves, Médios-graves, Médios, Agudos, Ar). Cada som é um nó:
 - a **altura** do nó é o centro de frequência real do som (medido renderizando esse som sozinho);
-- em **cada camada** onde o som tem energia aparece um disco, maior quanto mais presença tem ali. Um bombo é um disco grande nos graves e pequeno nos agudos (o clique); se dois sons têm discos grandes na mesma camada, estão a disputar o mesmo espaço;
-- **esquerda-direita** é o pan, **frente-trás** é o volume (à frente = mais alto). Arrasta um nó para mudar os dois;
-- as **ligações** levam cada som ao **Master** e aos efeitos (**Reverb** e **Delay**). A espessura é o envio, e as partículas correm ao ritmo do som quando tocas.
+- em **cada camada** onde o som tem energia aparece um disco, maior quanto mais presença tem ali. Um bombo é um disco grande nos graves e pequeno nos agudos (o clique);
+- **esquerda-direita** é o pan, **frente-trás** é o volume (à frente = mais alto). Arrasta um nó para mudar os dois.
 
-Arrasta o fundo para rodar, usa + e − (ou pinça no trackpad) para aproximar. Clica num som (no palco ou na lista) para o ajustar:
+O palco é também um **grafo de sinal**: cada som liga ao **Master** (saída direta) e aos **efeitos** (envios); cada efeito liga ao Master ou a outro efeito. A espessura de cada ligação é o envio, e as partículas correm ao ritmo do som quando tocas.
+
+### No gráfico
+- **Clica** num som, num efeito ou numa **ligação** para abrir o painel de ajustes (só aparece quando escolhes alguma coisa; fecha com × ou Esc).
+- **Puxa o +** que está ao lado de cada nó até um efeito para criar um envio, ou até ao Master para ligar a saída direta. Do + de um efeito até outro efeito, encadeia-os (ex.: Chorus → Reverb). Ligações que fariam um ciclo são recusadas.
+- **Duplo clique** num som silencia-o; num efeito, desliga-o.
+- Os efeitos **arrastam-se** para onde quiseres no palco.
+- Passa o rato por cima de um nó ou de uma ligação para ver os valores.
+- **Conflitos**: quando dois sons têm muita energia na mesma camada, estão no mesmo sítio do palco e tocam ao mesmo tempo, aparece uma linha vermelha a piscar entre eles. No painel do som há atalhos para **cortar essa banda −4 dB** ou **afastar os dois no pan**.
+- **Vista**: Livre (rodar), **Frente** (pan × frequência) e **Cima** (pan × volume). Zoom com + e − (ou pinça no trackpad).
+- Teclado: com o palco focado, as **setas** escolhem o som ou efeito seguinte; **M** e **S** dão mudo e solo; **Delete** apaga o efeito ou a ligação escolhidos; **Esc** fecha o painel.
+
+### O painel de um som
 - **Volume, Pan, Mute (M), Solo (S)**;
 - **EQ** de 3 bandas (graves, médios, agudos): o nó muda de altura e os discos mudam de tamanho;
 - **Som**: afinação e decaimento do bombo, tom da tarola e das palmas, brilho dos hi-hats, timbre da melodia, afinação/decaimento/saturação do 808;
-- **Envios** para o reverb e o delay. Clica no Reverb (tamanho, nível) ou no Delay (tempo 1/8, 1/8 pontuada ou 1/4 no andamento do beat, repetições, nível).
+- **Saídas**: a saída direta para o Master (podes desligá-la para o som só se ouvir através dos efeitos, como num insert) e um envio para cada efeito. **+ Efeito para este som** acrescenta um efeito já ligado.
+
+### Efeitos
+Carrega em **+ Efeito** na barra do palco (até 8 efeitos; podes ter vários do mesmo tipo):
+
+| Efeito | O que faz | Ajustes |
+|---|---|---|
+| **Reverb** | A sala onde os sons tocam | Tamanho, pré-atraso, brilho, nível |
+| **Delay** | Eco no tempo do beat | 1/8, 1/8 pontuada, 1/4, 1/4 pontuada; repetições, brilho, pingue-pongue, nível |
+| **Chorus** | Duplica o som com pequenas variações: mais largo | Velocidade, profundidade, nível |
+| **Flanger** | "Jato" metálico que sobe e desce | Velocidade, profundidade, ressonância, nível |
+| **Phaser** | Ondas que rodam pelo som | Velocidade, profundidade, ressonância, nível |
+| **Distorção** | Saturação e garra (em paralelo) | Garra, brilho, nível |
+| **Lo-fi** | Menos bits e menos agudos: cassete, sampler antigo | Bits, brilho, nível |
+| **Filtro** | Passa-baixo, passa-alto ou banda, parado ou a varrer no tempo do beat | Tipo, corte, ressonância, varrer (1/4 a 2 compassos), amplitude, nível |
+| **Tremolo** | O volume pulsa no tempo do beat | Ritmo (1/16 a 1/2), profundidade, forma (suave ou corte), nível |
+
+No painel de um efeito escolhes as **entradas** (quanto cada som lhe envia), a **saída** (Master ou outro efeito), ligas/desligas ou removes. O Filtro e o Tremolo recomeçam em cada loop, alinhados com o compasso.
 
 **Baixo 808**: liga-o na barra do palco. Toca uma nota em cada bombo, no tom da melodia (segue a nota da melodia que estiver a tocar), e aparece no MIDI como uma pista própria (canal 2) e nos stems.
 
-As tuas **gravações de voz** também são nós (começam em mudo). Tira o M para as juntares ao beat. O que ouves é o que exportas: o WAV e os stems saem com a mistura. O MIDI leva só as notas (a mistura faz-se no teu DAW). A mistura fica guardada no projeto.
+As tuas **gravações de voz** também são nós (começam em mudo). Tira o M para as juntares ao beat. O que ouves é o que exportas: o WAV e os stems saem com a mistura e os efeitos. O MIDI leva só as notas (a mistura faz-se no teu DAW). A mistura (com os efeitos e as ligações) fica guardada no projeto; projetos antigos abrem com o Reverb e o Delay de antes.
 
 ## Efeitos da voz (melodia)
 A forma como cantas controla efeitos no som da melodia, em contínuo (não há "modos": quanto mais, mais):
@@ -131,7 +159,8 @@ A forma como cantas controla efeitos no som da melodia, em contínuo (não há "
 - **Nome**: dá nome ao beat. Vai para a capa e para os nomes dos ficheiros (`noite-em-lisboa-90bpm.wav`).
 - **Repetições do loop** (1×, 2×, 4×, 8×): quantas vezes o loop se repete no MIDI e no WAV.
 - **MIDI**: completo (2 pistas), só bateria ou só melodia.
-- **Áudio WAV**: o beat já tocado com os sons da app (44,1 kHz, estéreo), para ouvir no telemóvel ou mandar a alguém. **Stems**: bateria e melodia em WAV separados (num zip).
+- **Áudio WAV**: o beat já tocado com os sons da app (44,1 kHz, 24 bits, estéreo). Tem a **duração exata** do loop × repetições e começa **no tempo 1** (amostra 0): num DAW encaixa logo na grelha e dá a volta sem costura, porque as caudas do fim (reverb, delay, notas longas) entram no início, tal como quando tocas em loop. Leva o andamento embutido (chunk ACID: BPM, n.º de tempos, 4/4), que o FL Studio e outros DAWs leem.
+- **Stems**: cada parte em WAV separado (bateria, melodia, 808 e voz, se estiverem na mistura), num zip. Têm a mesma duração e o mesmo ponto de partida que a mistura e o mesmo ganho entre si: postos lado a lado num DAW, somados dão a mistura (antes do compressor do master). Cada stem leva os seus envios para os efeitos.
 - **Capa**: imagem quadrada de 1600 px, com as colunas LED do beat e a linha da melodia.
 - **Projeto**: guarda as notas e definições num `.beatvox.json` e **Abrir** volta a carregá-lo mais tarde (a gravação da voz não vai no ficheiro).
 - **Descarregar tudo (.zip)**: MIDI, WAV, stems, capa e projeto de uma vez.
@@ -174,12 +203,13 @@ microfone → gravação (com metrónomo e contagem)
 | `js/midi.js` | Escrita do ficheiro `.mid` (bateria, melodia com curvas dos efeitos, 808) |
 | `js/app.js` | Interface, grelha, edição, exportação |
 | `js/knob.js` | Botões rotativos acessíveis |
-| `js/mixer.js` | Mesa de mistura: canal por som (EQ, pan, volume, envios), reverb, delay, perfil de espetro |
-| `js/stage3d.js` | Palco 3D da mistura (camadas de frequência, nós, ligações, arrastar) |
+| `js/mixer.js` | Mesa de mistura: canal por som (EQ, pan, volume, saída direta, envios), os 9 tipos de efeito e o encaminhamento entre eles, perfil de espetro |
+| `js/stage3d.js` | Palco 3D da mistura (camadas de frequência, nós, ligações, cabos, conflitos, vistas) |
 | `js/scene.js` | Fundo 3D de partículas em WebGL (muda com o scroll e reage ao som) |
 | `js/eq3d.js` | Equalizador 3D de blocos LED do movimento III (WebGL) |
 | `js/flow.js` | Passos e transições guiadas pelo scroll |
 | `js/zip.js` | Zip simples (pacote completo, stems, e MIDI/WAV no link web) |
+| `ferramentas/empacotar.py` | Gera o `index.html` da raiz (tudo num só ficheiro) a partir de `codigo-fonte/`: `python3 ferramentas/empacotar.py` |
 
 Lead: a voz é reduzida a ~16 kHz, a altura é seguida a cada 10 ms com o algoritmo **YIN**, a curva é limpa com um filtro de mediana, e cada nota começa quando a altura muda de forma estável (> ¾ de meio-tom durante 40 ms) ou quando há uma consoante. O tom é detetado com o método de Krumhansl-Schmuckler.
 

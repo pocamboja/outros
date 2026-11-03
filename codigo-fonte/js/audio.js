@@ -37,6 +37,36 @@
     if (c.createConstantSource) { bend = c.createConstantSource(); bend.offset.value = 0; bend.start(); }
     return { input, bend, p: { wet: wet.gain, dry: dry.gain, wahF: wah.frequency, wahG: wah.gain, lpF: lp.frequency, level: level.gain, send: send.gain, bend: bend && bend.offset } };
   }
+  // ---------- master: compressor ----------
+  // O DynamicsCompressor do browser arranca "fechado" (redução máxima) e só abre ao ritmo do release:
+  // sem isto, o primeiro tempo de cada WAV (e da primeira vez que tocas) sai abafado.
+  function makeComp(c, t = 0) {
+    const k = c.createDynamicsCompressor();
+    k.threshold.value = -10; k.ratio.value = 4;
+    k.release.setValueAtTime(0.001, t);
+    k.release.setValueAtTime(0.25, t + 0.05);
+    return k;
+  }
+  // o compressor atrasa o som (look-ahead de ~6 ms): mede-se uma vez para o WAV começar no tempo 1
+  let compLat = null;
+  function compLatency() {
+    if (!compLat) compLat = (async () => {
+      try {
+        const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext, sr = 44100, at = 1024;
+        const c = new OAC(1, 4096, sr), k = makeComp(c);
+        k.connect(c.destination);
+        const b = c.createBuffer(1, 1, sr); b.getChannelData(0)[0] = 0.5;
+        const s = c.createBufferSource(); s.buffer = b; s.connect(k); s.start(at / sr);
+        const x = (await c.startRendering()).getChannelData(0);
+        let mi = 0;
+        for (let i = 0; i < x.length; i++) if (Math.abs(x[i]) > Math.abs(x[mi])) mi = i;
+        const d = (mi - at) / sr;
+        return d >= 0 && d < 0.05 ? d : 0.006;
+      } catch (e) { return 0.006; }
+    })();
+    return compLat;
+  }
+
   const NEUTRAL = { wet: 0, dry: 1, wahF: 1000, wahG: 0, lpF: 20000, level: 1, send: 0, bend: 0 };
   function resetLeadBus(bus, t) {
     for (const k in bus.p) if (bus.p[k]) { bus.p[k].cancelScheduledValues(0); bus.p[k].setValueAtTime(NEUTRAL[k], t); }
@@ -81,9 +111,7 @@
         for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
         this.master = this.ctx.createGain();
         this.master.gain.value = 0.9;
-        const comp = this.ctx.createDynamicsCompressor();
-        comp.threshold.value = -10;
-        comp.ratio.value = 4;
+        const comp = makeComp(this.ctx, this.ctx.currentTime);
         this.master.connect(comp).connect(this.ctx.destination);
         // analisadores para a cena reagir ao som (saída e microfone)
         this.outAn = this.ctx.createAnalyser(); this.outAn.fftSize = 512;
@@ -477,6 +505,7 @@
       const stepDur = 60 / bpm / stepsPerBeat;
       const loopDur = stepDur * totalSteps;
       const t0 = c.currentTime + 0.12;
+      if (this.mixer) this.mixer.sync(t0); // LFOs (filtro, tremolo) alinhados com o compasso
       this.playT0 = t0;
       this.playLoopDur = loopDur;
       this.playStepDur = stepDur;
@@ -528,13 +557,25 @@
 
     /**
      * Renderiza o loop para um ficheiro de áudio, sem tocar nada (OfflineAudioContext), com os mesmos sons da reprodução.
-     * o = { bpm, stepsPerBeat, totalSteps, drums, lead, leadPreset, loops }
+     * o = { bpm, stepsPerBeat, totalSteps, drums, lead, bass, voices, leadPreset, leadFx, mix, loops,
+     *       master (false = sem o compressor do master, para os stems), raw (sem normalizar),
+     *       preroll (false = sem pré-rolo nem corte: só para medir o espetro) }
+     *
+     * O ficheiro tem a duração exata de N loops e começa no tempo 1 (amostra 0):
+     * - o loop toca uma ou mais vezes ANTES do início do ficheiro (pré-rolo), por isso o compressor do master
+     *   já está estável no primeiro tempo e as caudas do fim (reverb, delay, notas longas) entram no início,
+     *   como quando tocas em loop: o ficheiro dá a volta sem costura num DAW ou num leitor;
+     * - o atraso do compressor (look-ahead) é compensado no corte.
      */
     async render(o) {
       const sr = 44100, stepDur = 60 / o.bpm / o.stepsPerBeat, loops = o.loops || 1;
-      const loopDur = stepDur * o.totalSteps, tail = 1.2;
+      const loopDur = stepDur * o.totalSteps;
+      const useMaster = o.master !== false, cut = o.preroll !== false;
+      const lat = useMaster ? await compLatency() : 0;
+      const pre = cut ? Math.max(1, Math.ceil(2.5 / loopDur)) : 0;
+      const total = pre + loops;
       const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
-      const c = new OAC(2, Math.ceil((loopDur * loops + tail) * sr), sr);
+      const c = new OAC(2, Math.ceil((total * loopDur + lat + (cut ? 0.05 : 1.2)) * sr), sr);
       // um "motor" temporário que usa os mesmos sintetizadores, ligado ao contexto offline
       const r = Object.create(Engine.prototype);
       r.ctx = c;
@@ -543,42 +584,44 @@
       for (let i = 0; i < sr; i++) d[i] = Math.random() * 2 - 1;
       r.master = c.createGain();
       r.master.gain.value = 0.9;
-      const comp = c.createDynamicsCompressor();
-      comp.threshold.value = -10; comp.ratio.value = 4;
-      r.master.connect(comp).connect(c.destination);
+      if (useMaster) r.master.connect(makeComp(c, 0)).connect(c.destination);
+      else r.master.connect(c.destination);
       if (BV.mix && o.mix) {
         r.mixer = BV.mix.build(c, r.master);
         r.mixState = o.mix;
         r.mixer.apply(o.mix, o.bpm, o.stepsPerBeat, 0, 0);
+        r.mixer.sync(0);
       }
       r.leadBus = makeLeadBus(c, r.mixer ? r.mixer.strips.lead.input : r.master);
-      const t0 = 0.005;
-      for (let k = 0; k < loops; k++) {
-        const base = t0 + k * loopDur;
+      const voiceBufs = (o.voices || []).map((v) => {
+        const b = c.createBuffer(1, v.rec.samples.length, v.rec.sr);
+        b.copyToChannel(v.rec.samples, 0);
+        return b;
+      });
+      for (let k = 0; k < total; k++) {
+        const base = k * loopDur + (cut ? 0 : 0.005);
         scheduleLeadBus(r.leadBus, o.leadFx || null, base, stepDur);
         for (const n of o.drums || []) r.playDrum(n.drum, base + n.step * stepDur, n.vel);
         for (const n of o.lead || []) r.playLead(n.pitch, base + n.step * stepDur, n.len * stepDur, n.vel, o.leadPreset);
         for (const n of o.bass || []) r.playBass(n.pitch, base + n.step * stepDur, n.len * stepDur, n.vel);
-        for (const v of o.voices || []) {
-          const b = c.createBuffer(1, v.rec.samples.length, v.rec.sr);
-          b.copyToChannel(v.rec.samples, 0);
-          const src = c.createBufferSource(); src.buffer = b;
+        (o.voices || []).forEach((v, i) => {
+          const src = c.createBufferSource(); src.buffer = voiceBufs[i];
           src.connect(r.stripIn(v.kind)); src.start(base, Math.max(0, v.offset), loopDur);
-        }
+        });
       }
       const buf = await c.startRendering();
-      // corta a cauda silenciosa e faz um fade-out curto no fim
-      const L = buf.getChannelData(0), R = buf.getChannelData(1);
+      let L = buf.getChannelData(0), R = buf.getChannelData(1);
+      if (cut) {
+        const s0 = Math.round((pre * loopDur + lat) * sr), n = Math.round(loops * loopDur * sr);
+        L = L.slice(s0, s0 + n); R = R.slice(s0, s0 + n);
+      }
       // sem clipping: se passar de -1 dBFS, baixa o ganho de tudo por igual
-      let pk = 0;
-      for (let i = 0; i < L.length; i++) pk = Math.max(pk, Math.abs(L[i]), Math.abs(R[i]));
-      if (pk > 0.89 && !o.raw) { const g = 0.89 / pk; for (let i = 0; i < L.length; i++) { L[i] *= g; R[i] *= g; } }
-      let end = L.length;
-      const minEnd = Math.ceil((loopDur * loops + 0.05) * sr);
-      while (end > minEnd && Math.abs(L[end - 1]) < 1e-4 && Math.abs(R[end - 1]) < 1e-4) end--;
-      const fade = Math.min(end, Math.round(0.02 * sr));
-      for (let i = 0; i < fade; i++) { const g = i / fade; L[end - 1 - i] *= g; R[end - 1 - i] *= g; }
-      return { channels: [L.subarray(0, end), R.subarray(0, end)], sr };
+      if (!o.raw) {
+        let pk = 0;
+        for (let i = 0; i < L.length; i++) pk = Math.max(pk, Math.abs(L[i]), Math.abs(R[i]));
+        if (pk > 0.89) { const g = 0.89 / pk; for (let i = 0; i < L.length; i++) { L[i] *= g; R[i] *= g; } }
+      }
+      return { channels: [L, R], sr, bpm: o.bpm, beats: Math.round(loops * o.totalSteps / o.stepsPerBeat) };
     }
 
     stop() {
@@ -602,20 +645,60 @@
   BV.normalizeAudio = normalize;
   BV.Engine = Engine;
 
-  /** WAV PCM 16 bits a partir de canais Float32 → Uint8Array */
-  BV.encodeWav = function ({ channels, sr }) {
-    const nc = channels.length, n = channels[0].length, bytes = 44 + n * nc * 2;
-    const b = new ArrayBuffer(bytes), v = new DataView(b);
+  /**
+   * WAV PCM (24 bits por omissão) a partir de canais Float32 → Uint8Array.
+   * Com bpm e beats junta um chunk "acid" (andamento, n.º de tempos, 4/4): o FL Studio e outros DAWs
+   * ficam a saber o andamento do loop. name vai para os metadados (INFO).
+   */
+  BV.encodeWav = function ({ channels, sr, bpm, beats, name, bits = 24 }) {
+    const nc = channels.length, n = channels[0].length, bps = bits === 16 ? 2 : 3, dataLen = n * nc * bps;
+    const ascii = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\x20-\x7e]/g, '');
+    // chunks extra (depois dos dados, onde todos os leitores os aceitam)
+    const extra = [];
+    if (bpm && beats) {
+      const a = new DataView(new ArrayBuffer(24));
+      a.setUint32(0, 0x04, true);          // loop (não one-shot), com stretch
+      a.setUint16(4, 60, true); a.setUint16(6, 0x8000, true); a.setFloat32(8, 0, true);
+      a.setUint32(12, beats, true);
+      a.setUint16(16, 4, true); a.setUint16(18, 4, true); // 4/4
+      a.setFloat32(20, bpm, true);
+      extra.push(['acid', new Uint8Array(a.buffer)]);
+    }
+    const info = [['INAM', ascii(name)], ['ISFT', 'BeatVox']].filter(([, s]) => s);
+    if (info.length) {
+      const parts = info.map(([id, s]) => { const t = s + '\0', len = t.length + (t.length & 1), u = new Uint8Array(8 + len); for (let i = 0; i < 4; i++) u[i] = id.charCodeAt(i); new DataView(u.buffer).setUint32(4, t.length, true); for (let i = 0; i < t.length; i++) u[8 + i] = t.charCodeAt(i); return u; });
+      const body = new Uint8Array(4 + parts.reduce((s, p) => s + p.length, 0));
+      body.set([73, 78, 70, 79]); // INFO
+      let o = 4; for (const p of parts) { body.set(p, o); o += p.length; }
+      extra.push(['LIST', body]);
+    }
+    const extraLen = extra.reduce((s, [, d]) => s + 8 + d.length + (d.length & 1), 0);
+    const bytes = 44 + dataLen + (dataLen & 1) + extraLen;
+    const b = new ArrayBuffer(bytes), v = new DataView(b), u8 = new Uint8Array(b);
     const str = (o, t) => { for (let i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); };
     str(0, 'RIFF'); v.setUint32(4, bytes - 8, true); str(8, 'WAVE'); str(12, 'fmt ');
     v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, nc, true); v.setUint32(24, sr, true);
-    v.setUint32(28, sr * nc * 2, true); v.setUint16(32, nc * 2, true); v.setUint16(34, 16, true);
-    str(36, 'data'); v.setUint32(40, n * nc * 2, true);
+    v.setUint32(28, sr * nc * bps, true); v.setUint16(32, nc * bps, true); v.setUint16(34, bps * 8, true);
+    str(36, 'data'); v.setUint32(40, dataLen, true);
     let o = 44;
-    for (let i = 0; i < n; i++) for (let ch = 0; ch < nc; ch++) {
-      const x = Math.max(-1, Math.min(1, channels[ch][i]));
-      v.setInt16(o, x < 0 ? x * 0x8000 : x * 0x7fff, true); o += 2;
+    if (bps === 2) {
+      for (let i = 0; i < n; i++) for (let ch = 0; ch < nc; ch++) {
+        const x = Math.max(-1, Math.min(1, channels[ch][i]));
+        v.setInt16(o, Math.round(x < 0 ? x * 0x8000 : x * 0x7fff), true); o += 2;
+      }
+    } else {
+      for (let i = 0; i < n; i++) for (let ch = 0; ch < nc; ch++) {
+        const x = channels[ch][i];
+        let q = Math.round((x < 0 ? x * 8388608 : x * 8388607) || 0);
+        if (q > 8388607) q = 8388607; else if (q < -8388608) q = -8388608;
+        u8[o] = q & 255; u8[o + 1] = (q >> 8) & 255; u8[o + 2] = (q >> 16) & 255; o += 3;
+      }
     }
-    return new Uint8Array(b);
+    o += dataLen & 1;
+    for (const [id, d] of extra) {
+      str(o, id); v.setUint32(o + 4, d.length, true); u8.set(d, o + 8);
+      o += 8 + d.length + (d.length & 1);
+    }
+    return u8;
   };
 })(typeof window !== 'undefined' ? window : globalThis);

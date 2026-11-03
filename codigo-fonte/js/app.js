@@ -668,8 +668,9 @@
     $('btnMidiAll').disabled = !(hasDrums() || hasLead());
     const any = hasDrums() || hasLead();
     for (const id of ['btnWav', 'btnSaveProj', 'btnAll']) $(id).disabled = !any || rendering;
-    $('btnStems').disabled = !(hasDrums() && hasLead()) || rendering;
-    $('btnStems').title = hasDrums() && hasLead() ? '' : 'Precisa de bateria e melodia';
+    const nStems = stemParts().length;
+    $('btnStems').disabled = nStems < 2 || rendering;
+    $('btnStems').title = nStems >= 2 ? stemParts().map(([n]) => n).join(', ') : 'Precisa de pelo menos duas partes (bateria, melodia, 808 ou voz)';
     $('btnCoverPlay').disabled = $('btnPlay').disabled;
     $('btnPng').disabled = !hasCur && !C.rec;
     $('btnPlay').disabled = (!hasDrums() && !hasLead() && !matches(C.rec) && !state.metronome) || state.busy;
@@ -1036,17 +1037,42 @@
     download(new Blob([midiBytes(kind)], { type: 'audio/midi' }), `${fileBase()}-${name}.mid`);
     if (!EMBEDDED) setStatus(kind === 'all' ? 'MIDI completo descarregado.' : 'MIDI descarregado — arrasta-o para o teu DAW.', 'ok');
   }
-  async function wavBytes(kind) {
-    const voices = kind === 'mix' ? [[state.drums, 'vdrums'], [state.lead, 'vlead']]
-      .filter(([R, k]) => matches(R.rec) && !state.mix.els[k].mute).map(([R, k]) => ({ rec: R.rec, offset: bar1Of(R.rec) / R.rec.sr, kind: k })) : [];
-    const r = await engine.render({
-      mix: state.mix, voices,
-      bass: kind === 'mix' || kind === 'bass' ? bassNotes() : [],
-      bpm: state.bpm, stepsPerBeat: stepsPerBeat(), totalSteps: totalSteps(), loops: state.loops, leadPreset: state.lead.preset,
-      drums: kind === 'mix' || kind === 'drums' ? state.drums.notes : [], lead: kind === 'mix' || kind === 'lead' ? state.lead.notes : [],
-      leadFx: kind === 'mix' || kind === 'lead' ? leadFxNow() : null,
+  // as gravações da voz que estão ligadas na mistura (tiraste o "M")
+  const mixVoices = () => [[state.drums, 'vdrums'], [state.lead, 'vlead']]
+    .filter(([R, k]) => matches(R.rec) && !state.mix.els[k].mute).map(([R, k]) => ({ rec: R.rec, offset: bar1Of(R.rec) / R.rec.sr, kind: k }));
+  /** opções do render para as partes pedidas ({ drums, lead, bass, voices }) */
+  function renderOpts(parts, extra = {}) {
+    return {
+      mix: state.mix, bpm: state.bpm, stepsPerBeat: stepsPerBeat(), totalSteps: totalSteps(), loops: state.loops, leadPreset: state.lead.preset,
+      drums: parts.drums ? state.drums.notes : [], lead: parts.lead ? state.lead.notes : [], leadFx: parts.lead ? leadFxNow() : null,
+      bass: parts.bass ? bassNotes() : [], voices: parts.voices ? mixVoices() : [], ...extra,
+    };
+  }
+  async function wavMix() {
+    const r = await engine.render(renderOpts({ drums: 1, lead: 1, bass: 1, voices: 1 }));
+    return BV.encodeWav({ ...r, name: state.name.trim() || 'BeatVox' });
+  }
+  /** stems: as partes que existem, cada uma com os seus envios para os efeitos */
+  function stemParts() {
+    const out = [];
+    if (hasDrums()) out.push(['bateria', { drums: 1 }]);
+    if (hasLead()) out.push(['melodia', { lead: 1 }]);
+    if (bassNotes().length) out.push(['808', { bass: 1 }]);
+    if (mixVoices().length) out.push(['voz', { voices: 1 }]);
+    return out;
+  }
+  /** Os stems têm a mesma duração e o mesmo ponto de partida que a mistura, e o mesmo ganho entre si:
+      postos lado a lado num DAW somam a mistura (antes do compressor do master). */
+  async function stemFiles(dir = '') {
+    const rs = [];
+    for (const [nome, parts] of stemParts()) rs.push([nome, await engine.render(renderOpts(parts, { master: false, raw: true }))]);
+    let pk = 0;
+    for (const [, r] of rs) for (const ch of r.channels) for (let i = 0; i < ch.length; i++) { const a = Math.abs(ch[i]); if (a > pk) pk = a; }
+    const g = pk > 0.89 ? 0.89 / pk : 1;
+    return rs.map(([nome, r]) => {
+      if (g !== 1) for (const ch of r.channels) for (let i = 0; i < ch.length; i++) ch[i] *= g;
+      return { name: `${dir}${fileBase()}-${nome}.wav`, data: BV.encodeWav({ ...r, name: `${state.name.trim() || 'BeatVox'} (${nome})` }) };
     });
-    return BV.encodeWav(r);
   }
   async function busyExport(label, fn) {
     if (rendering) return;
@@ -1055,17 +1081,15 @@
     try { await fn(); } catch (e) { console.error(e); setStatus('Não consegui criar o ficheiro: ' + ((e && e.message) || e), 'err'); }
     finally { rendering = false; updateButtons(); }
   }
+  const loopTxt = () => `${state.bars * state.loops} ${state.bars * state.loops === 1 ? 'compasso' : 'compassos'} a ${state.bpm} BPM`;
   const exportWav = () => busyExport('A renderizar o áudio…', async () => {
-    await download(new Blob([await wavBytes('mix')], { type: 'audio/wav' }), `${fileBase()}.wav`);
-    if (!EMBEDDED) setStatus('WAV descarregado.', 'ok');
+    await download(new Blob([await wavMix()], { type: 'audio/wav' }), `${fileBase()}.wav`);
+    if (!EMBEDDED) setStatus(`WAV descarregado: ${loopTxt()}, a começar no tempo 1 e pronto a dar a volta em loop.`, 'ok');
   });
   const exportStems = () => busyExport('A renderizar os stems…', async () => {
-    const files = [];
-    if (hasDrums()) files.push({ name: `${fileBase()}-bateria.wav`, data: await wavBytes('drums') });
-    if (hasLead()) files.push({ name: `${fileBase()}-melodia.wav`, data: await wavBytes('lead') });
-    if (bassNotes().length) files.push({ name: `${fileBase()}-808.wav`, data: await wavBytes('bass') });
+    const files = await stemFiles();
     await download(new Blob([BV.zip.store(files)], { type: 'application/zip' }), `${fileBase()}-stems.zip`);
-    if (!EMBEDDED) setStatus('Stems descarregados (zip com ' + files.length + ' WAV).', 'ok');
+    if (!EMBEDDED) setStatus(`Stems descarregados (${files.length} WAV, ${loopTxt()}, todos alinhados).`, 'ok');
   });
 
   // projeto: notas e definições em JSON (sem as gravações da voz)
@@ -1211,12 +1235,8 @@
     if (hasDrums()) add(`midi/${fileBase()}-bateria.mid`, midiBytes('drums'));
     if (hasLead()) add(`midi/${fileBase()}-melodia.mid`, midiBytes('lead'));
     if (bassNotes().length) add(`midi/${fileBase()}-808.mid`, midiBytes('bass'));
-    add(`${fileBase()}.wav`, await wavBytes('mix'));
-    if (hasDrums() && hasLead()) {
-      add(`stems/${fileBase()}-bateria.wav`, await wavBytes('drums'));
-      add(`stems/${fileBase()}-melodia.wav`, await wavBytes('lead'));
-      if (bassNotes().length) add(`stems/${fileBase()}-808.wav`, await wavBytes('bass'));
-    }
+    add(`${fileBase()}.wav`, await wavMix());
+    if (stemParts().length >= 2) for (const f of await stemFiles('stems/')) files.push(f);
     const cv = document.createElement('canvas'); cv.width = cv.height = 1600; drawCover(cv);
     const png = await new Promise((r) => cv.toBlob(r));
     add(`${slug()}-capa.png`, new Uint8Array(await png.arrayBuffer()));
@@ -1271,6 +1291,14 @@
   const MX = BV.mix, ST = BV.stage3d;
   const MIXEL = MX.elements();
   const elInfo = (id) => MIXEL.find((e) => e.id === id) || { id, nome: id, cor: '#d8b57a' };
+  const fxOf = (id) => state.mix.fx.find((f) => f.id === id);
+  /** nome de um efeito: "Reverb", ou "Reverb 2" se houver mais do que um do mesmo tipo */
+  function fxName(f) {
+    const same = state.mix.fx.filter((x) => x.type === f.type);
+    return MX.FX_TYPES[f.type].nome + (same.length > 1 ? ' ' + (same.indexOf(f) + 1) : '');
+  }
+  const nameOf = (id) => (id === 'master' ? 'Master' : fxOf(id) ? fxName(fxOf(id)) : elInfo(id).nome);
+  const colorOf = (id) => (id === 'master' ? '#d8b57a' : fxOf(id) ? MX.FX_TYPES[fxOf(id).type].cor : elInfo(id).cor);
 
   /** 808: uma nota em cada bombo, no tom da melodia (segue a nota da melodia que estiver a tocar) */
   function bassNotes() {
@@ -1328,19 +1356,77 @@
       for (const id of visibleEls()) {
         const key = profKey(id), old = profiles.get(id);
         if (old && old.key === key) continue;
-        // só este som, no centro, sem envios: interessa a forma do espetro
+        // só este som, no centro, sem efeitos: interessa a forma do espetro
         const mix = JSON.parse(JSON.stringify(state.mix));
-        for (const k in mix.els) Object.assign(mix.els[k], { mute: k !== id, solo: false, vol: 0, pan: 0, rev: 0, dly: 0 });
-        const r = await engine.render({ bpm: state.bpm, stepsPerBeat: stepsPerBeat(), totalSteps: totalSteps(), loops: 1, leadPreset: state.lead.preset, mix, raw: true, ...elNotes(id) });
+        for (const k in mix.els) Object.assign(mix.els[k], { mute: k !== id, solo: false, vol: 0, pan: 0, dry: true, sends: {} });
+        const r = await engine.render({ bpm: state.bpm, stepsPerBeat: stepsPerBeat(), totalSteps: totalSteps(), loops: 1, leadPreset: state.lead.preset, mix, raw: true, master: false, preroll: false, ...elNotes(id) });
         const pr = MX.spectrumProfile(r.channels, r.sr);
         if (pr) profiles.set(id, { key, ...pr });
         mixNodes();
       }
     } catch (e) { console.warn('BeatVox: perfil de espetro', e); }
     profBusy = false;
+    refreshPresence();
+  }
+  /** atualiza só o espetro no painel (sem redesenhar os controlos, que podem estar a ser arrastados) */
+  function refreshPresence() {
+    const box = $('mixInsp');
+    if (!mixSel || mixSel.includes('>') || fxOf(mixSel) || box.hidden) return;
+    const pr = profiles.get(mixSel), old = box.querySelector('.presence, .mx-pres-wait'), hint = box.querySelector('.mx-centro');
+    if (old) old.outerHTML = presenceHtml(mixSel);
+    if (hint && pr) hint.textContent = centroTxt(pr);
   }
 
-  // ---- nós do palco ----
+  // ---- conflitos de frequência ----
+  const zOfVol = (db) => (Math.max(-30, Math.min(6, db)) + 30) / 36 * 2 - 1;
+  /** em que passos cada som está a soar (para saber se dois sons tocam ao mesmo tempo) */
+  function activity(id) {
+    const n = totalSteps(), a = new Uint8Array(n), o = elNotes(id);
+    if (!o) return a;
+    if (o.voices) { a.fill(1); return a; }
+    const ring = Math.max(1, stepsPerBeat() / 2), len = { kick: 2, snare: 2, clap: 2, hat: 1, openhat: 3 };
+    for (const x of o.drums || []) for (let k = 0; k < Math.round((len[x.drum] || 1) * ring); k++) a[(x.step + k) % n] = 1;
+    for (const x of (o.lead || []).concat(o.bass || [])) for (let k = 0; k < x.len; k++) a[(x.step + k) % n] = 1;
+    return a;
+  }
+  const bandShare = (pr, b, i) => (b.of ? b.of.reduce((t, j) => t + pr.share[j], 0) : pr.share[i]);
+  /** dois sons com muita energia na mesma camada, perto um do outro no palco e a tocar ao mesmo tempo */
+  function findConflicts(ids) {
+    const bands = state.mix.dims === 6 ? MX.BANDS6 : MX.BANDS3, out = [];
+    const anySolo = ids.some((id) => state.mix.els[id].solo);
+    const live = ids.filter((id) => {
+      const e = state.mix.els[id];
+      return profiles.get(id) && !e.mute && (!anySolo || e.solo) && (e.dry !== false || Object.values(e.sends).some((v) => v > 0.005));
+    });
+    const act = new Map(live.map((id) => [id, activity(id)]));
+    for (let i = 0; i < live.length; i++) for (let j = i + 1; j < live.length; j++) {
+      const A = live[i], B = live[j], ea = state.mix.els[A], eb = state.mix.els[B];
+      const d = Math.hypot((ea.pan - eb.pan) * 1.5, (zOfVol(ea.vol) - zOfVol(eb.vol)) * 1.35);
+      if (d > 0.6) continue;
+      const xa = act.get(A), xb = act.get(B);
+      let both = 0, na = 0, nb = 0;
+      for (let k = 0; k < xa.length; k++) { na += xa[k]; nb += xb[k]; both += xa[k] & xb[k]; }
+      const co = both / Math.max(1, Math.min(na, nb));
+      if (co < 0.5) continue;
+      bands.forEach((b, bi) => {
+        const sa = bandShare(profiles.get(A), b, bi), sb = bandShare(profiles.get(B), b, bi);
+        if (sa < 0.35 || sb < 0.35) return;
+        out.push({ a: A, b: B, band: bi, nome: b.nome, sev: Math.min(1, Math.min(sa, sb) * co * (1 - d / 0.6) * 2.5) });
+      });
+    }
+    return out;
+  }
+  let mixConflicts = [];
+
+  // ---- nós e ligações do palco ----
+  /** posição dos efeitos: atrás e por cima das camadas, ou onde os arrastaste */
+  function fxPos(f, i, n) {
+    let h = 0; for (const ch of f.id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+    const y = 2.4 + (h % 3) * 0.16;
+    if (f.pos) return { x: f.pos.x, y, z: f.pos.z };
+    return { x: n === 1 ? -2.05 : -2.05 + 4.1 * (i / (n - 1)), y, z: -1.5 - (i % 2) * 0.3 };
+  }
+  const hasOut = (e) => e.dry !== false || Object.values(e.sends).some((v) => v > 0.005);
   function mixNodes() {
     if (!ST) return;
     const ids = visibleEls();
@@ -1350,20 +1436,41 @@
       const e = state.mix.els[id], info = elInfo(id), pr = profiles.get(id);
       return {
         id, nome: info.nome, cor: info.cor, vol: e.vol, pan: e.pan,
-        muted: e.mute || (anySolo && !e.solo),
+        muted: e.mute || (anySolo && !e.solo), dry: e.dry !== false, silent: !hasOut(e),
         share: pr ? pr.share : null, centroid: pr ? pr.centroid : { kick: 70, bass: 70, snare: 1500, clap: 1600, hat: 9000, openhat: 8500, lead: 900 }[id] || 1000,
-        sends: { rev: e.rev, dly: e.dly },
+        sends: { ...e.sends },
       };
     });
-    ST.fx = [
-      { id: 'rev', nome: 'Reverb', cor: '#b9a6d6', p: { x: -2.05, y: 2.4, z: -1.5 } },
-      { id: 'dly', nome: 'Delay', cor: '#8fc1b5', p: { x: 2.05, y: 2.4, z: -1.5 } },
-    ];
+    const n = state.mix.fx.length;
+    ST.fx = state.mix.fx.map((f, i) => ({ id: f.id, nome: fxName(f), cor: MX.FX_TYPES[f.type].cor, p: fxPos(f, i, n), on: f.on, out: f.out }));
+    mixConflicts = findConflicts(ids);
+    ST.conflicts = mixConflicts;
     ST.empty = ids.length ? '' : 'Grava a bateria ou a melodia para as veres aqui.';
+  }
+  const pctTxt = (v) => Math.round(v * 100) + '%';
+  const dbTxt = (v) => (v > 0 ? '+' : '') + (Math.round(v * 10) / 10).toString().replace('.', ',') + ' dB';
+  const panTxt = (v) => (Math.abs(v) < 0.02 ? 'centro' : (v < 0 ? 'E ' : 'D ') + Math.round(Math.abs(v) * 100));
+  /** ligações: "som>master" (saída direta), "som>efeito" (envio), "efeito>destino" */
+  function edgeValid(key) {
+    const [a, b] = key.split('>');
+    const f = fxOf(a);
+    if (f) return f.out === b || (b === 'master' && !fxOf(f.out));
+    const e = state.mix.els[a];
+    if (!e || !visibleEls().includes(a)) return false;
+    return b === 'master' ? e.dry !== false : (e.sends[b] || 0) > 0.005 && !!fxOf(b);
+  }
+  function unlink(key) {
+    const [a, b] = key.split('>');
+    const f = fxOf(a);
+    if (f) { f.out = 'master'; return; }
+    const e = state.mix.els[a];
+    if (!e) return;
+    if (b === 'master') e.dry = false; else delete e.sends[b];
   }
   if (ST) {
     ST.getLevel = (id) => (engine.mixer && engine.playing ? engine.mixer.level(id) : 0);
-    ST.onSelect = (id) => { mixSel = id; renderInsp(); };
+    ST.onSelect = (id) => { selectMix(id); };
+    ST.onSelectEdge = (key) => { selectMix(key); };
     ST.onDrag = (id, pan, vol) => {
       const e = state.mix.els[id];
       if (!e) return;
@@ -1372,8 +1479,59 @@
       if (mixSel === id) syncInspValues();
     };
     ST.onDragEnd = () => persist();
+    ST.onMoveFx = (id, x, z) => {
+      const f = fxOf(id);
+      if (!f) return;
+      f.pos = { x: Math.round(x * 100) / 100, z: Math.round(z * 100) / 100 };
+      mixNodes(); clearTimeout(persistT); persistT = setTimeout(persist, 400);
+    };
+    ST.onConnect = (from, to) => {
+      const f = fxOf(from);
+      if (f) {
+        if (!MX.canRoute(state.mix, from, to)) { setStatus('Essa ligação fazia um ciclo: o som voltava ao mesmo efeito.', 'err'); return; }
+        f.out = to;
+        setStatus(`${fxName(f)} → ${nameOf(to)}.`, 'ok');
+      } else {
+        const e = state.mix.els[from];
+        if (!e) return;
+        if (to === 'master') e.dry = true;
+        else if (!((e.sends[to] || 0) > 0.005)) e.sends[to] = 0.5;
+        setStatus(`${nameOf(from)} → ${nameOf(to)}${to === 'master' ? ' (saída direta)' : ': envio a ' + pctTxt(e.sends[to])}.`, 'ok');
+      }
+      mixChanged(false);
+      selectMix(from + '>' + to);
+    };
+    ST.onToggle = (id) => {
+      const f = fxOf(id);
+      if (f) { f.on = !f.on; setStatus(`${fxName(f)} ${f.on ? 'ligado' : 'desligado'}.`); }
+      else if (state.mix.els[id]) { const e = state.mix.els[id]; e.mute = !e.mute; restartIfPlaying(); setStatus(`${nameOf(id)} ${e.mute ? 'em mudo' : 'de volta à mistura'}.`); }
+      mixChanged(false); renderInsp();
+    };
+    ST.onPreset = (name) => syncViewSeg(name);
+    ST.describe = (id) => {
+      const f = fxOf(id);
+      if (f) {
+        const ins = visibleEls().filter((k) => (state.mix.els[k].sends[id] || 0) > 0.005).map(nameOf);
+        return [fxName(f) + (f.on ? '' : ' (desligado)'), ins.length ? 'Recebe: ' + ins.join(', ') : 'Ainda ninguém lhe envia som', 'Saída: ' + nameOf(f.out), 'Duplo clique: ' + (f.on ? 'desligar' : 'ligar')];
+      }
+      const e = state.mix.els[id];
+      if (!e) return null;
+      const sends = Object.entries(e.sends).filter(([k, v]) => v > 0.005 && fxOf(k)).map(([k, v]) => `${nameOf(k)} ${pctTxt(v)}`);
+      const cf = mixConflicts.filter((k) => k.a === id || k.b === id).map((k) => `Disputa os ${k.nome.toLowerCase()} com ${nameOf(k.a === id ? k.b : k.a)}`);
+      return [nameOf(id) + (e.mute ? ' (mudo)' : ''), `${dbTxt(e.vol)} · ${panTxt(e.pan)}`, (e.dry === false ? 'Sem saída direta' : 'Saída direta') + (sends.length ? ' · ' + sends.join(' · ') : ''), ...cf, 'Duplo clique: ' + (e.mute ? 'tirar do mudo' : 'silenciar')];
+    };
+    ST.describeEdge = (key) => {
+      const [a, b] = key.split('>'), e = state.mix.els[a];
+      const what = fxOf(a) ? 'Saída do efeito' : b === 'master' ? 'Saída direta' : 'Envio ' + pctTxt(e ? e.sends[b] || 0 : 0);
+      return [`${nameOf(a)} → ${nameOf(b)}`, what, 'Clica para ajustar ou desligar'];
+    };
   }
   let mixSel = null, persistT = 0;
+  function selectMix(id) {
+    mixSel = id;
+    closeFxMenu();
+    renderInsp();
+  }
   function mixChanged(reprofile) {
     engine.setMix(state.mix, state.bpm);
     clearTimeout(persistT); persistT = setTimeout(persist, 400);
@@ -1381,64 +1539,100 @@
     if (reprofile) scheduleProfiles();
   }
 
-  // ---- inspetor ----
-  const dbTxt = (v) => (v > 0 ? '+' : '') + (Math.round(v * 10) / 10).toString().replace('.', ',') + ' dB';
-  const panTxt = (v) => (Math.abs(v) < 0.02 ? 'centro' : (v < 0 ? 'E ' : 'D ') + Math.round(Math.abs(v) * 100));
-  const pctTxt = (v) => Math.round(v * 100) + '%';
+  // ---- painel de ajustes (só aparece com um som, um efeito ou uma ligação escolhidos) ----
   function sliderRow(k, nome, min, max, step, val, txt) {
-    return `<label class="mx-row"><span class="mx-l">${nome}</span><input type="range" data-k="${k}" min="${min}" max="${max}" step="${step}" value="${val}" aria-label="${nome}" /><output data-o="${k}">${txt}</output></label>`;
+    return `<label class="mx-row"><span class="mx-l">${nome}</span><input type="range" data-k="${k}" min="${min}" max="${max}" step="${step}" value="${val}" aria-label="${nome.replace(/<[^>]*>/g, '')}" /><output data-o="${k}">${txt}</output></label>`;
   }
+  const dot = (id) => `<i style="--c:${colorOf(id)}"></i>`;
+  const closeBtn = '<button class="mx-close icon-btn" data-close title="Fechar (Esc)" aria-label="Fechar"><svg><use href="#i-x"/></svg></button>';
   function presenceHtml(id) {
     const pr = profiles.get(id), bands = state.mix.dims === 6 ? MX.BANDS6 : MX.BANDS3;
-    if (!pr) return '<p class="hint">A medir o espetro…</p>';
-    const shares = bands.map((b, i) => (b.of ? b.of.reduce((s, j) => s + pr.share[j], 0) : pr.share[i]));
+    if (!pr) return '<p class="hint mx-pres-wait">A medir o espetro…</p>';
+    const shares = bands.map((b, i) => bandShare(pr, b, i));
     const max = Math.max(...shares, 1e-9);
     return `<div class="presence" style="--n:${bands.length}">${bands.map((b, i) => {
       const lit = Math.round((shares[i] / max) * 8);
       return `<div class="pcol" title="${b.nome}: ${Math.round(shares[i] * 100)}%"><div class="pleds">${Array.from({ length: 8 }, (_, k) => `<i class="${k < lit ? 'on' : ''}"></i>`).join('')}</div><span>${b.nome.replace('Médios-graves', 'M-graves')}</span></div>`;
     }).join('')}</div>`;
   }
+  function paramRow(prefix, q, v) {
+    if (q.kind === 'seg') return `<div class="mx-row"><span class="mx-l">${q.nome}</span><div class="seg" data-seg="${prefix}${q.id}">${q.opts.map(([ov, n]) => `<button data-v="${ov}" class="${String(v) === String(ov) ? 'on' : ''}">${n}</button>`).join('')}</div></div>`;
+    if (q.kind === 'toggle') return `<div class="mx-row"><span class="mx-l">${q.nome}</span><label class="switch mx-sw"><input type="checkbox" data-k="${prefix}${q.id}" ${v ? 'checked' : ''} aria-label="${q.nome}" /><i></i></label></div>`;
+    return sliderRow(prefix + q.id, q.nome, q.min, q.max, q.step, v, q.fmt(v));
+  }
   function renderInsp() {
     const box = $('mixInsp');
     if (!box) return;
-    const ids = visibleEls();
-    if (mixSel === 'rev' || mixSel === 'dly') {
-      const fx = state.mix.fx;
-      box.innerHTML = `<button class="mx-back" data-back>← Todos os sons</button>
-        <div class="mx-title"><i style="--c:${mixSel === 'rev' ? '#b9a6d6' : '#8fc1b5'}"></i><b>${mixSel === 'rev' ? 'Reverb' : 'Delay'}</b></div>
-        <p class="hint">${mixSel === 'rev' ? 'A sala onde os sons tocam. Cada som envia mais ou menos para aqui (envio Reverb).' : 'Eco no tempo do beat. Cada som envia mais ou menos para aqui (envio Delay).'}</p>
-        <div class="mx-sec">${mixSel === 'rev'
-          ? sliderRow('fx.rev.size', 'Tamanho', 0.4, 6, 0.1, fx.rev.size, fx.rev.size.toFixed(1).replace('.', ',') + ' s') + sliderRow('fx.rev.level', 'Nível', 0, 1.5, 0.01, fx.rev.level, pctTxt(fx.rev.level))
-          : `<div class="mx-row"><span class="mx-l">Tempo</span><div class="seg" id="dlyDiv">${MX.DIV.map((d) => `<button data-v="${d.v}" class="${fx.dly.div === d.v ? 'on' : ''}">${d.nome}</button>`).join('')}</div></div>` +
-            sliderRow('fx.dly.fb', 'Repetições', 0, 0.85, 0.01, fx.dly.fb, pctTxt(fx.dly.fb)) + sliderRow('fx.dly.level', 'Nível', 0, 1.5, 0.01, fx.dly.level, pctTxt(fx.dly.level))}</div>`;
-      return;
-    }
-    if (!mixSel || !ids.includes(mixSel)) {
-      mixSel = null;
-      box.innerHTML = `<div class="mx-title"><b>Sons</b></div>
-        <p class="hint">Escolhe um som (aqui ou no palco) para mexer no volume, pan, EQ, timbre e efeitos.</p>
-        <ul class="mx-list">${ids.map((id) => {
-          const e = state.mix.els[id], info = elInfo(id);
-          return `<li><button class="mx-item" data-sel="${id}"><i style="--c:${info.cor}"></i>${info.nome}<span>${e.mute ? 'mudo' : dbTxt(e.vol)}</span></button>
-            <button class="ms ${e.mute ? 'on' : ''}" data-mute="${id}" title="Silenciar">M</button><button class="ms ${e.solo ? 'on solo' : ''}" data-solo="${id}" title="Solo">S</button></li>`;
-        }).join('') || '<li class="hint">Ainda não há sons.</li>'}</ul>
-        <ul class="mx-list fxl"><li><button class="mx-item" data-sel="rev"><i style="--c:#b9a6d6"></i>Reverb<span>FX</span></button></li><li><button class="mx-item" data-sel="dly"><i style="--c:#8fc1b5"></i>Delay<span>FX</span></button></li></ul>`;
-      return;
-    }
-    const e = state.mix.els[mixSel], info = elInfo(mixSel), pr = profiles.get(mixSel);
-    const params = MX.PARAMS[mixSel] || [];
-    const voiceNote = mixSel === 'vdrums' || mixSel === 'vlead' ? '<p class="hint">A tua gravação. Começa fora da mistura: tira o "M" para a juntares ao beat.</p>' : '';
-    box.innerHTML = `<button class="mx-back" data-back>← Todos os sons</button>
-      <div class="mx-title"><i style="--c:${info.cor}"></i><b>${info.nome}</b>
-        <span class="mx-ms"><button class="ms ${e.mute ? 'on' : ''}" data-mute="${mixSel}" title="Silenciar">M</button><button class="ms ${e.solo ? 'on solo' : ''}" data-solo="${mixSel}" title="Solo">S</button></span></div>
-      ${pr ? `<p class="hint">Centro em ${pr.centroid >= 1000 ? (pr.centroid / 1000).toFixed(1).replace('.', ',') + ' kHz' : Math.round(pr.centroid) + ' Hz'}. Presença em cada dimensão:</p>` : ''}
-      ${presenceHtml(mixSel)}${voiceNote}
+    if (mixSel && (mixSel.includes('>') ? !edgeValid(mixSel) : !fxOf(mixSel) && !visibleEls().includes(mixSel))) mixSel = null;
+    const was = !box.hidden;
+    box.hidden = !mixSel;
+    if (ST) { ST.selected = mixSel && !mixSel.includes('>') ? mixSel : null; ST.selEdge = mixSel && mixSel.includes('>') ? mixSel : null; }
+    if (was !== !box.hidden) setTimeout(mixView, 0);
+    if (!mixSel) { box.innerHTML = ''; return; }
+    if (mixSel.includes('>')) renderEdgeInsp(box);
+    else if (fxOf(mixSel)) renderFxInsp(box);
+    else renderElInsp(box);
+  }
+  const centroTxt = (pr) => `Centro em ${pr.centroid >= 1000 ? (pr.centroid / 1000).toFixed(1).replace('.', ',') + ' kHz' : Math.round(pr.centroid) + ' Hz'}. Presença em cada dimensão:`;
+  function renderElInsp(box) {
+    const id = mixSel, e = state.mix.els[id], info = elInfo(id), pr = profiles.get(id);
+    const params = MX.PARAMS[id] || [];
+    const voiceNote = id === 'vdrums' || id === 'vlead' ? '<p class="hint">A tua gravação. Começa fora da mistura: tira o "M" (ou faz duplo clique no nó) para a juntares ao beat.</p>' : '';
+    const cf = mixConflicts.filter((k) => k.a === id || k.b === id);
+    const cfHtml = cf.map((k) => {
+      const other = k.a === id ? k.b : k.a;
+      return `<div class="mx-warn"><p><b>Disputa os ${k.nome.toLowerCase()} com ${nameOf(other)}.</b> Tocam ao mesmo tempo e estão no mesmo sítio do palco.</p>
+        <div class="mx-warn-btns"><button class="btn small ghost" data-fix="eq" data-band="${k.band}">Cortar ${k.nome.toLowerCase()} −4 dB</button><button class="btn small ghost" data-fix="pan" data-other="${other}">Afastar no pan</button></div></div>`;
+    }).join('');
+    const fxRows = state.mix.fx.map((f) => sliderRow('send.' + f.id, `${dot(f.id)}${fxName(f)}`, 0, 1, 0.01, e.sends[f.id] || 0, pctTxt(e.sends[f.id] || 0))).join('');
+    box.innerHTML = `<div class="mx-title">${dot(id)}<b>${info.nome}</b>
+        <span class="mx-ms"><button class="ms ${e.mute ? 'on' : ''}" data-mute="${id}" title="Silenciar (M)">M</button><button class="ms ${e.solo ? 'on solo' : ''}" data-solo="${id}" title="Solo (S)">S</button></span>${closeBtn}</div>
+      ${cfHtml}
+      <p class="hint mx-centro">${pr ? centroTxt(pr) : ''}</p>
+      ${presenceHtml(id)}${voiceNote}
       <div class="mx-sec">${sliderRow('vol', 'Volume', -30, 6, 0.5, e.vol, dbTxt(e.vol))}${sliderRow('pan', 'Pan', -1, 1, 0.01, e.pan, panTxt(e.pan))}</div>
       <div class="mx-sec"><span class="g-label">EQ</span>${['Graves', 'Médios', 'Agudos'].map((n, i) => sliderRow('eq' + i, n, -12, 12, 0.5, e.eq[i], dbTxt(e.eq[i]))).join('')}</div>
-      ${params.length || mixSel === 'lead' ? `<div class="mx-sec"><span class="g-label">Som</span>${mixSel === 'lead'
+      ${params.length || id === 'lead' ? `<div class="mx-sec"><span class="g-label">Som</span>${id === 'lead'
         ? `<div class="mx-row"><span class="mx-l">Timbre</span><div class="seg" id="mxPreset">${[['synth', 'Synth'], ['pluck', 'Pluck'], ['sine', 'Suave']].map(([v, n]) => `<button data-v="${v}" class="${state.lead.preset === v ? 'on' : ''}">${n}</button>`).join('')}</div></div>`
         : params.map((q) => sliderRow('p.' + q.id, q.nome, q.min, q.max, q.step, e.p[q.id], q.fmt(e.p[q.id]))).join('')}</div>` : ''}
-      <div class="mx-sec"><span class="g-label">Envios</span>${sliderRow('rev', 'Reverb', 0, 1, 0.01, e.rev, pctTxt(e.rev))}${sliderRow('dly', 'Delay', 0, 1, 0.01, e.dly, pctTxt(e.dly))}</div>`;
+      <div class="mx-sec"><span class="g-label">Saídas</span>
+        <div class="mx-row"><span class="mx-l">${dot('master')}Master</span><label class="switch mx-sw" title="Saída direta para o master. Desliga-a para o som só se ouvir através dos efeitos."><input type="checkbox" data-k="dry" ${e.dry !== false ? 'checked' : ''} aria-label="Saída direta para o master" /><i></i></label></div>
+        ${fxRows}
+        <button class="btn small ghost mx-add" data-addfor="${id}">+ Efeito para este som</button>
+        ${!hasOut(e) ? '<p class="hint mx-err">Sem saída: este som não se ouve. Liga a saída direta ou envia-o para um efeito.</p>' : ''}
+      </div>`;
+  }
+  function renderFxInsp(box) {
+    const f = fxOf(mixSel), T = MX.FX_TYPES[f.type];
+    const targets = ['master', ...state.mix.fx.filter((x) => x.id !== f.id && MX.canRoute(state.mix, f.id, x.id)).map((x) => x.id)];
+    const ins = visibleEls();
+    box.innerHTML = `<div class="mx-title">${dot(f.id)}<b>${fxName(f)}</b>${closeBtn}</div>
+      <p class="hint">${T.dica}</p>
+      <div class="mx-row"><span class="mx-l">Ligado</span><label class="switch mx-sw" title="Ligar ou desligar (duplo clique no nó)"><input type="checkbox" data-k="fxon" ${f.on ? 'checked' : ''} aria-label="Ligado" /><i></i></label></div>
+      <div class="mx-sec">${T.params.map((q) => paramRow('fxp.', q, f.p[q.id])).join('')}</div>
+      <div class="mx-sec"><span class="g-label">Entradas</span>
+        ${ins.map((id) => sliderRow('in.' + id, `${dot(id)}${nameOf(id)}`, 0, 1, 0.01, state.mix.els[id].sends[f.id] || 0, pctTxt(state.mix.els[id].sends[f.id] || 0))).join('') || '<p class="hint">Ainda não há sons.</p>'}
+        <p class="hint">Ou arrasta o <b>+</b> de um som até este efeito.</p>
+      </div>
+      <div class="mx-sec"><span class="g-label">Saída</span>
+        <div class="seg mx-outs" data-out>${targets.map((t) => `<button data-v="${t}" class="${f.out === t ? 'on' : ''}">${nameOf(t)}</button>`).join('')}</div>
+      </div>
+      <button class="btn small ghost mx-remove" data-rmfx="${f.id}">Remover efeito</button>`;
+  }
+  function renderEdgeInsp(box) {
+    const [a, b] = mixSel.split('>'), f = fxOf(a), e = state.mix.els[a];
+    let body;
+    if (f) body = `<p class="hint">A saída de ${fxName(f)} vai para ${nameOf(b)}. Arrasta o <b>+</b> do efeito para outro efeito para os encadear.</p>`;
+    else if (b === 'master') body = `<p class="hint">Saída direta do som para o master. Desliga-a para o som só se ouvir através dos efeitos (como num insert).</p>`;
+    else body = `<div class="mx-sec">${sliderRow('edge', 'Envio', 0, 1, 0.01, e.sends[b] || 0, pctTxt(e.sends[b] || 0))}</div><p class="hint">Quanto deste som vai para ${nameOf(b)} (depois do volume e do pan).</p>`;
+    const canUnlink = !(f && b === 'master');
+    box.innerHTML = `<div class="mx-title mx-edge">${dot(a)}<b>${nameOf(a)}</b><span class="arrow">→</span>${dot(b)}<b>${nameOf(b)}</b>${closeBtn}</div>
+      ${body}
+      <div class="mx-btns">
+        ${canUnlink ? `<button class="btn small" data-unlink>Desligar</button>` : ''}
+        <button class="btn small ghost" data-sel="${a}">Abrir ${nameOf(a)}</button>
+        ${b !== 'master' ? `<button class="btn small ghost" data-sel="${b}">Abrir ${nameOf(b)}</button>` : ''}
+      </div>`;
   }
   function syncInspValues() {
     const box = $('mixInsp');
@@ -1449,44 +1643,171 @@
   }
   $('mixInsp').addEventListener('input', (e) => {
     const k = e.target.dataset.k;
-    if (!k) return;
+    if (!k || e.target.type === 'checkbox') return;
     const v = +e.target.value, out = $('mixInsp').querySelector(`[data-o="${k}"]`);
-    let reprofile = false, txt = '';
-    if (k.startsWith('fx.')) {
-      const [, f, p] = k.split('.');
-      state.mix.fx[f][p] = v;
-      txt = p === 'size' ? v.toFixed(1).replace('.', ',') + ' s' : pctTxt(v);
-    } else {
-      const el = state.mix.els[mixSel];
+    let reprofile = false, txt = pctTxt(v);
+    const el = state.mix.els[mixSel], f = fxOf(mixSel);
+    if (k.startsWith('fxp.') && f) {
+      const q = MX.FX_TYPES[f.type].params.find((x) => 'fxp.' + x.id === k);
+      f.p[q.id] = v; txt = q.fmt(v);
+    } else if (k.startsWith('in.') && f) {
+      const src = state.mix.els[k.slice(3)];
+      if (src) { if (v > 0) src.sends[f.id] = v; else delete src.sends[f.id]; }
+    } else if (k === 'edge') {
+      const [a, b] = mixSel.split('>');
+      if (state.mix.els[a]) state.mix.els[a].sends[b] = v;
+    } else if (el) {
       if (k === 'vol') { el.vol = v; txt = dbTxt(v); }
       else if (k === 'pan') { el.pan = v; txt = panTxt(v); }
       else if (k.startsWith('eq')) { el.eq[+k[2]] = v; txt = dbTxt(v); reprofile = true; }
-      else if (k === 'rev' || k === 'dly') { el[k] = v; txt = pctTxt(v); }
+      else if (k.startsWith('send.')) { const id = k.slice(5); if (v > 0) el.sends[id] = v; else delete el.sends[id]; }
       else if (k.startsWith('p.')) { const q = (MX.PARAMS[mixSel] || []).find((x) => 'p.' + x.id === k); el.p[q.id] = v; txt = q.fmt(v); reprofile = true; }
     }
     if (out) out.textContent = txt;
     mixChanged(reprofile);
   });
-  $('mixInsp').addEventListener('change', (e) => { if (e.target.dataset.k) renderInsp(); });
+  $('mixInsp').addEventListener('change', (e) => {
+    const k = e.target.dataset.k;
+    if (!k) return;
+    if (e.target.type === 'checkbox') {
+      const on = e.target.checked, f = fxOf(mixSel);
+      if (k === 'dry' && state.mix.els[mixSel]) state.mix.els[mixSel].dry = on;
+      else if (k === 'fxon' && f) f.on = on;
+      else if (k.startsWith('fxp.') && f) f.p[k.slice(4)] = on ? 1 : 0;
+      mixChanged(false);
+    }
+    renderInsp();
+  });
   $('mixInsp').addEventListener('click', (e) => {
     const b = e.target.closest('button');
     if (!b) return;
-    if (b.dataset.back != null) { mixSel = null; if (ST) ST.selected = null; renderInsp(); return; }
-    if (b.dataset.sel) { mixSel = b.dataset.sel; if (ST) ST.selected = mixSel; renderInsp(); return; }
+    const f = fxOf(mixSel);
+    if (b.dataset.close != null) { selectMix(null); return; }
+    if (b.dataset.sel) { selectMix(b.dataset.sel); return; }
     if (b.dataset.mute) { const el = state.mix.els[b.dataset.mute]; el.mute = !el.mute; mixChanged(false); restartIfPlaying(); renderInsp(); return; }
     if (b.dataset.solo) { const el = state.mix.els[b.dataset.solo]; el.solo = !el.solo; mixChanged(false); renderInsp(); return; }
-    if (b.closest('#dlyDiv')) { state.mix.fx.dly.div = +b.dataset.v; mixChanged(false); renderInsp(); return; }
+    if (b.dataset.addfor) { openFxMenu(b.dataset.addfor, b); return; }
+    if (b.dataset.rmfx) { const name = fxName(fxOf(b.dataset.rmfx)); MX.removeFx(state.mix, b.dataset.rmfx); mixChanged(false); selectMix(null); setStatus(`${name} removido.`); return; }
+    if (b.dataset.unlink != null) { unlink(mixSel); const [a] = mixSel.split('>'); mixChanged(false); selectMix(a); setStatus('Ligação desligada.'); return; }
+    if (b.dataset.fix) {
+      const el = state.mix.els[mixSel];
+      if (b.dataset.fix === 'eq') {
+        const bi = +b.dataset.band, idx = state.mix.dims === 6 ? [0, 0, 1, 1, 2, 2][bi] : bi;
+        el.eq[idx] = Math.max(-12, el.eq[idx] - 4);
+        mixChanged(true);
+      } else {
+        const o = state.mix.els[b.dataset.other], side = el.pan <= o.pan ? -1 : 1;
+        el.pan = Math.max(-1, Math.min(1, (Math.abs(el.pan) < 0.3 ? 0.35 : Math.abs(el.pan)) * side));
+        if (Math.abs(o.pan) < 0.3) o.pan = -0.35 * side;
+        mixChanged(false);
+      }
+      renderInsp(); return;
+    }
+    const seg = b.closest('[data-seg]');
+    if (seg && f) {
+      const pid = seg.dataset.seg.replace(/^fxp\./, ''), q = MX.FX_TYPES[f.type].params.find((x) => x.id === pid);
+      const o = q && q.opts.find((x) => String(x[0]) === b.dataset.v);
+      if (o) { f.p[pid] = o[0]; mixChanged(false); renderInsp(); }
+      return;
+    }
+    if (b.closest('[data-out]') && f) {
+      const to = b.dataset.v;
+      if (MX.canRoute(state.mix, f.id, to)) { f.out = to; mixChanged(false); renderInsp(); }
+      return;
+    }
     if (b.closest('#mxPreset')) { state.lead.preset = b.dataset.v; persist(); refresh(); restartIfPlaying(); scheduleProfiles(); renderInsp(); }
   });
-  // zona livre para o palco: entre o título, a barra de baixo e o painel da direita
+
+  // ---- acrescentar efeitos ----
+  const fxMenu = $('fxMenu'), btnAddFx = $('btnAddFx');
+  let addFor = null;
+  fxMenu.innerHTML = MX.FX_ORDER.map((t) => { const T = MX.FX_TYPES[t]; return `<button role="menuitem" data-add="${t}"><i style="--c:${T.cor}"></i><b>${T.nome}</b><span>${T.dica}</span></button>`; }).join('');
+  function openFxMenu(forId = null, anchor = btnAddFx) {
+    addFor = forId;
+    fxMenu.hidden = false;
+    btnAddFx.setAttribute('aria-expanded', 'true');
+    fxMenu.classList.toggle('from-insp', anchor !== btnAddFx);
+    fxMenu.style.left = ''; fxMenu.style.bottom = '';
+    if (anchor !== btnAddFx) { // aberto a partir do painel: aparece por cima do botão que o abriu
+      const r = anchor.getBoundingClientRect(), host = fxMenu.offsetParent.getBoundingClientRect(), mw = fxMenu.offsetWidth;
+      const vx = Math.max(16, Math.min(r.right - mw, innerWidth - mw - 16));
+      fxMenu.style.left = (vx - host.left) + 'px';
+      fxMenu.style.bottom = (host.bottom - r.top + 6) + 'px';
+    }
+    const full = state.mix.fx.length >= MX.MAX_FX;
+    fxMenu.querySelectorAll('button').forEach((b) => (b.disabled = full));
+    if (!full) fxMenu.querySelector('button').focus();
+  }
+  function closeFxMenu() {
+    if (fxMenu.hidden) return;
+    fxMenu.hidden = true;
+    btnAddFx.setAttribute('aria-expanded', 'false');
+  }
+  btnAddFx.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (!fxMenu.hidden) { closeFxMenu(); return; }
+    const sel = mixSel && state.mix.els[mixSel] ? mixSel : null;
+    openFxMenu(sel);
+  });
+  fxMenu.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-add]');
+    if (!b) return;
+    e.stopPropagation();
+    const f = MX.addFx(state.mix, b.dataset.add);
+    closeFxMenu();
+    if (!f) { setStatus(`Já tens ${MX.MAX_FX} efeitos. Remove um para acrescentar outro.`, 'err'); return; }
+    if (addFor && state.mix.els[addFor]) state.mix.els[addFor].sends[f.id] = 0.5;
+    mixChanged(false);
+    selectMix(f.id);
+    setStatus(addFor ? `${fxName(f)} acrescentado e ligado a ${nameOf(addFor)}.` : `${fxName(f)} acrescentado. Arrasta o + de um som até ele para o ligar.`, 'ok');
+  });
+  document.addEventListener('click', (e) => { if (!fxMenu.hidden && !fxMenu.contains(e.target)) closeFxMenu(); });
+
+  // ---- vistas ----
+  function syncViewSeg(name) { $('viewSeg').querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.v === name)); }
+  $('viewSeg').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b || !ST) return;
+    ST.setPreset(b.dataset.v); syncViewSeg(b.dataset.v);
+  });
+
+  // ---- teclado no palco: setas escolhem o nó seguinte, Esc fecha, Delete apaga, M/S mudo e solo ----
+  function mixKey(e) {
+    if (!BV.flow || BV.flow.active !== 4) return false;
+    if (e.target.closest && e.target.closest('input, select, textarea, [contenteditable]')) return false;
+    if (e.key === 'Escape') { if (!fxMenu.hidden) closeFxMenu(); else selectMix(null); return true; }
+    if (!mixSel) return false;
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      if (mixSel.includes('>')) { unlink(mixSel); const [a] = mixSel.split('>'); mixChanged(false); selectMix(a); return true; }
+      if (fxOf(mixSel)) { const name = fxName(fxOf(mixSel)); MX.removeFx(state.mix, mixSel); mixChanged(false); selectMix(null); setStatus(`${name} removido.`); return true; }
+      return false;
+    }
+    const el = state.mix.els[mixSel];
+    if (el && (e.key === 'm' || e.key === 'M')) { el.mute = !el.mute; mixChanged(false); restartIfPlaying(); renderInsp(); return true; }
+    if (el && (e.key === 's' || e.key === 'S')) { el.solo = !el.solo; mixChanged(false); renderInsp(); return true; }
+    return false;
+  }
+  $('stage3d').addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft' || e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      const ids = visibleEls().concat(state.mix.fx.map((f) => f.id));
+      if (!ids.length) return;
+      const i = ids.indexOf(mixSel), d = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : -1;
+      selectMix(ids[i < 0 ? (d > 0 ? 0 : ids.length - 1) : (i + d + ids.length) % ids.length]);
+      setStatus(nameOf(mixSel) + ' selecionado.');
+    }
+  });
+
+  // zona livre para o palco: entre o título, a barra de baixo e o painel da direita (se estiver aberto)
   function mixView() {
     if (!ST) return;
     const cv = $('stage3d'), r = cv.getBoundingClientRect();
     if (!r.width) return;
-    const head = document.querySelector('.mix-head').getBoundingClientRect(), bar = document.querySelector('.mix-bar').getBoundingClientRect(), insp = $('mixInsp').getBoundingClientRect();
+    const head = document.querySelector('.mix-head').getBoundingClientRect(), bar = document.querySelector('.mix-bar').getBoundingClientRect(), insp = $('mixInsp');
     const narrow = innerWidth <= 860;
+    const ir = insp.hidden ? null : insp.getBoundingClientRect();
+    const right = ir && ir.width ? ir.left - r.left - 10 : document.querySelector('.mix-next').getBoundingClientRect().right - r.left - 20;
     ST.setView(narrow ? { x0: 0, y0: head.bottom - r.top, x1: r.width, y1: bar.top - r.top }
-      : { x0: head.left - r.left - 40, y0: head.bottom - r.top - 10, x1: insp.left - r.left - 10, y1: bar.top - r.top - 6 });
+      : { x0: head.left - r.left - 40, y0: head.bottom - r.top - 10, x1: right, y1: bar.top - r.top - 6 });
   }
   addEventListener('resize', () => setTimeout(mixView, 50));
   function mixRefresh() {
@@ -1495,6 +1816,7 @@
     renderInsp();
     $('bassOn').checked = state.mix.bassOn;
     $('dimsSeg').querySelectorAll('button').forEach((b) => b.classList.toggle('on', +b.dataset.v === state.mix.dims));
+    syncViewSeg(ST ? ST.preset : 'free');
     scheduleProfiles();
   }
   $('dimsSeg').addEventListener('click', (e) => {
@@ -1508,9 +1830,10 @@
   $('btnMixReset').addEventListener('click', () => {
     const keep = { bassOn: state.mix.bassOn, dims: state.mix.dims };
     state.mix = Object.assign(MX.defaultState(), keep);
+    mixSel = null;
     mixChanged(true); renderInsp();
     if (ST) ST.resetView();
-    setStatus('Mistura reposta.', 'ok');
+    setStatus('Mistura reposta: volumes, pan, EQ, sons e efeitos voltaram ao início.', 'ok');
   });
   engine.setMix(state.mix, state.bpm);
 
@@ -1736,6 +2059,7 @@
 
   document.addEventListener('keydown', (e) => {
     if (e.target.matches('input[type=number], input[type=text], select, textarea') || $('trainDlg').open || $('calDlg').open) return;
+    if (mixKey(e)) { e.preventDefault(); return; }
     if (e.code === 'Space') { e.preventDefault(); if (!$('btnPlay').disabled || engine.playing) togglePlay(); }
     else if (e.key === 'r' || e.key === 'R') doRecord('pattern');
     else if (e.key === '1') BV.flow ? BV.flow.go(2) : setView('drums');

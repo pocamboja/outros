@@ -200,15 +200,23 @@
 
     <!-- V Mistura: palco 3D -->
     <section class="step s-mix" data-step="4" aria-label="Mistura">
-      <canvas id="stage3d" aria-label="Palco 3D da mistura: cada camada é uma dimensão do som"></canvas>
+      <canvas id="stage3d" tabindex="0" aria-label="Palco 3D da mistura: cada camada é uma dimensão do som. Setas: escolher som ou efeito."></canvas>
       <div class="step-inner mix-layout">
         <header class="mix-head" data-depth="0.3">
           <span class="movement">V</span>
           <h2 class="title">Mistura</h2>
-          <p class="sub">Cada camada é uma dimensão do som, dos graves (em baixo) aos agudos (em cima). Arrasta um som para os lados (pan) ou para a frente (mais alto). Arrasta o fundo para rodar.</p>
+          <p class="sub">Cada camada é uma dimensão do som, dos graves (em baixo) aos agudos (em cima). Arrasta um som para os lados (pan) ou para a frente (mais alto). Clica num som, num efeito ou numa ligação para o ajustar; puxa o <b>+</b> de um som até um efeito para o ligar.</p>
         </header>
-        <aside class="panel mix-insp" id="mixInsp" data-depth="0.5" aria-label="Ajustes do som"></aside>
+        <aside class="panel mix-insp" id="mixInsp" data-depth="0.5" aria-label="Ajustes" hidden></aside>
         <div class="mix-bar" data-depth="0.6">
+          <div class="fx-add">
+            <button class="btn small" id="btnAddFx" aria-haspopup="menu" aria-expanded="false" title="Acrescentar um efeito ao palco">+ Efeito</button>
+            <div class="fx-menu" id="fxMenu" role="menu" aria-label="Efeitos" hidden></div>
+          </div>
+          <div class="group">
+            <span class="g-label">Vista</span>
+            <div class="seg" id="viewSeg"><button data-v="free" class="on" title="Livre: arrasta para rodar">Livre</button><button data-v="front" title="De frente: pan × frequência">Frente</button><button data-v="top" title="De cima: pan × volume">Cima</button></div>
+          </div>
           <div class="group">
             <span class="g-label">Dimensões</span>
             <div class="seg" id="dimsSeg"><button data-v="3">3</button><button data-v="6">6</button></div>
@@ -261,7 +269,7 @@
                 </div>
               </li>
               <li>
-                <div class="out-txt"><b>Áudio WAV</b><span>O beat já tocado, 44,1 kHz. Stems: bateria e melodia em ficheiros separados.</span></div>
+                <div class="out-txt"><b>Áudio WAV</b><span>O beat já tocado (44,1 kHz, 24 bits), com a duração exata do loop: começa no tempo 1 e dá a volta sem costura no DAW. Stems: cada parte em separado, todas alinhadas.</span></div>
                 <div class="out-btns">
                   <button id="btnWav" class="btn small" disabled>Mistura</button>
                   <button id="btnStems" class="btn small ghost" disabled>Stems</button>
