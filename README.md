@@ -30,8 +30,8 @@ O BeatVox é uma peça em 6 movimentos (I a VI). Faz **scroll** (roda do rato, t
 
 1. **Abertura**
 2. **Andamento**: BPM (escreve, usa + e −, ou carrega em *Marcar o tempo* ao ritmo da música), compassos, grelha, clique, auscultadores, **microfone** (escolher e testar) e latência.
-3. **Bateria**: gravar ou abrir áudio, a grelha, treinar a tua voz. Aqui o fundo é um **equalizador 3D de blocos LED** (verde → amarelo → laranja → vermelho) que segue o som: brilha por trás do vidro da grelha quando tocas e, enquanto gravas, aparece inteiro por baixo da contagem a mostrar a tua voz em tempo real. As notas da grelha também são colunas de LEDs: quantos mais blocos acesos, mais forte o golpe.
-4. **Melodia**: gravar por cima do beat, o piano roll, **efeitos da voz**, tom, escala, oitava e som.
+3. **Bateria**: gravar ou abrir áudio, a grelha, o **kit** (BeatVox, 808, 909, Trap, Acústico, Lo-fi) e a **biblioteca de sons** com os teus samples, treinar a tua voz. Aqui o fundo é um **equalizador 3D de blocos LED** (verde → amarelo → laranja → vermelho) que segue o som: brilha por trás do vidro da grelha quando tocas e, enquanto gravas, aparece inteiro por baixo da contagem a mostrar a tua voz em tempo real. As notas da grelha também são colunas de LEDs: quantos mais blocos acesos, mais forte o golpe.
+4. **Melodia**: gravar por cima do beat, o piano roll, **efeitos da voz**, tom, escala, oitava e instrumento (12 sintetizados ou o teu sample).
 5. **Mistura**: o palco 3D com os sons, os efeitos e as ligações entre eles, ver [Mistura](#mistura-o-palco-3d).
 6. **Exportar**: uma capa para o teu beat (com nome, que podes ouvir ali mesmo) e todas as saídas, ver [Exportar](#exportar).
 
@@ -78,7 +78,7 @@ O BeatVox é uma peça em 6 movimentos (I a VI). Faz **scroll** (roda do rato, t
 - **Auto** deteta o tom da tua melodia (ex.: Lá menor) e "puxa" cada nota para a nota mais próxima dessa escala — corrige pequenas desafinações.
 - Podes escolher o tom e a escala à mão: Maior, Menor, Pentatónica menor/maior, Blues, ou **Cromática** (sem ajuste — fica exatamente o que cantaste, arredondado ao meio-tom).
 - **Oitava ±**: a voz costuma ser grave para um lead; sobe 1 oitava para soar como um synth lead.
-- **Som**: Synth, Pluck ou Suave (só para ouvires aqui — no DAW escolhes o instrumento que quiseres).
+- **Som**: Synth, Pluck, Suave, Piano elétrico, Sinos, Órgão, Pad, Supersaw, Cordas, Flauta, Baixo, Chiptune ou **o teu sample** (ver [Sons](#sons-kits-instrumentos-e-a-tua-biblioteca)). No MIDI vai o programa General MIDI mais parecido; no DAW escolhes o instrumento que quiseres.
 
 ### Editar à mão (Lead)
 - **Clicar** numa célula vazia → cria nota (arrasta logo para a alongar)
@@ -90,6 +90,31 @@ O BeatVox é uma peça em 6 movimentos (I a VI). Faz **scroll** (roda do rato, t
 O cartão **A tua afinação** mostra a afinação média (em cents; 100 cents = 1 meio-tom), se tendes a cantar alto ou baixo, e quantas notas saíram da escala.
 
 Nomes das notas: Dó4 = C4 = Dó central (MIDI 60). Atenção: o FL Studio chama C5 a esta mesma nota — é só o nome, a nota é a mesma.
+
+## Sons: kits, instrumentos e a tua biblioteca
+**Kits de bateria** (movimento III, *Kit*), todos sintetizados no browser:
+
+| Kit | Carácter |
+|---|---|
+| **BeatVox** | O kit original: limpo e equilibrado |
+| **808** | Bombo redondo e longo, hi-hats metálicos (6 ondas quadradas, como na máquina original), palmas clássicas |
+| **909** | Bombo seco com estalo, tarola brilhante: house e techno |
+| **Trap** | Bombo 808 saturado e comprido, hi-hats curtíssimos, tarola com palmas |
+| **Acústico** | Pele, bordão e pratos |
+| **Lo-fi** | O kit original abafado e saturado, como de cassete |
+
+Ao trocar de kit ouves logo um compasso de exemplo. Os botões *Som* da mistura (afinação, decaimento, tom/brilho) funcionam em todos.
+
+**Instrumentos da melodia** (movimento IV, *Som*): Synth, Pluck, Suave, Piano elétrico (FM), Sinos (FM), Órgão, Pad, Supersaw, Cordas, Flauta, Baixo e Chiptune.
+
+### A tua biblioteca de samples
+Em **Biblioteca de sons** (movimento III, ou *Biblioteca* no painel de um som na mistura):
+- **Arrasta uma pasta inteira** (um sample pack) ou escolhe ficheiros: WAV, MP3, AIFF, OGG, FLAC.
+- Cada sample é arrumado pelo nome do ficheiro ou da pasta onde está: *kick/bd/bombo* → bombo, *snare/sd/tarola* → tarola, *clap* → palmas, *hat/hh/closed* → hi-hat fechado, *open/oh/crash* → hi-hat aberto, *808/sub/bass* → 808, *lead/synth/piano/pad/keys…* → melodia. O resto fica como "Outro" e podes mudar o tipo à mão.
+- Um pacote novo entra logo: cada lugar (bombo, tarola, palmas, hi-hats, 808, melodia) recebe o primeiro sample que lhe corresponde. Em cada lugar escolhes qualquer sample da biblioteca, ou voltas ao som sintetizado.
+- **808 e melodia são afinados**: a app descobre a nota do sample (pelo nome, ex. `808 C1.wav`, e pelo som) e toca-o na nota certa de cada nota da melodia ou do 808.
+- Os samples ficam **guardados neste browser** (IndexedDB) e são normalizados ao importar. Nada é enviado para a internet.
+- Entram em tudo: no que tocas, ao gravar por cima do beat, no WAV, nos stems e no palco da mistura. O projeto (`.beatvox.json`) guarda o kit e os nomes dos samples; ao abrir noutro browser, os que não estiverem na biblioteca voltam ao kit (e recebes um aviso).
 
 ## Mistura: o palco 3D
 Cada **camada** é uma dimensão do som: Graves, Médios e Agudos (ou 6 camadas: Sub, Graves, Médios-graves, Médios, Agudos, Ar). Cada som é um nó:
@@ -209,6 +234,7 @@ microfone → gravação (com metrónomo e contagem)
 | `js/eq3d.js` | Equalizador 3D de blocos LED do movimento III (WebGL) |
 | `js/flow.js` | Passos e transições guiadas pelo scroll |
 | `js/zip.js` | Zip simples (pacote completo, stems, e MIDI/WAV no link web) |
+| `js/sounds.js` | Kits de bateria e instrumentos sintetizados, sampler (afinação, decaimento) e a biblioteca dos teus samples (IndexedDB, arrumação pelo nome, nota de cada sample) |
 | `ferramentas/empacotar.py` | Gera o `index.html` da raiz (tudo num só ficheiro) a partir de `codigo-fonte/`: `python3 ferramentas/empacotar.py` |
 
 Lead: a voz é reduzida a ~16 kHz, a altura é seguida a cada 10 ms com o algoritmo **YIN**, a curva é limpa com um filtro de mediana, e cada nota começa quando a altura muda de forma estável (> ¾ de meio-tom durante 40 ms) ou quando há uma consoante. O tom é detetado com o método de Krumhansl-Schmuckler.
@@ -221,6 +247,7 @@ Lead: a voz é reduzida a ~16 kHz, a altura é seguida a cada 10 ms com o algori
 
 ## Próximos passos possíveis
 - **Mais efeitos da voz**: nasal, falsete, assobio, tremolo, vocal fry.
+- **Biblioteca online**: procurar samples livres (por exemplo, CC0) sem sair da app.
 - **Baixo**: a mesma deteção do lead, mas uma oitava abaixo e com som de baixo.
 - **Mais compassos** com secções (verso / refrão).
 - **Harmonia**: sugerir acordes que encaixam na melodia cantada.

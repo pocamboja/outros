@@ -706,6 +706,46 @@ dialog::backdrop { background: rgba(8, 2, 4, 0.65); backdrop-filter: blur(4px); 
   .head .ht { display: none; }
   .scroll-cue { display: none; }
 }
+/* ---------- sons: kit, instrumento e biblioteca ---------- */
+.sound-card { gap: 6px; padding-top: 12px; }
+.sound-card .field .select { width: 64%; }
+.sound-card .lib-btn { align-self: flex-start; padding-left: 0; }
+.lib-own { color: var(--gold); font-weight: 400; }
+#btnLibLead { align-self: flex-start; }
+.mx-sel { grid-column: 2 / 4; width: 100%; }
+.mx-sel select { min-height: 34px; font-size: 13px; }
+.mx-src { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-top: 4px; font-size: 12.5px; color: var(--ink-3); }
+.mx-src span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mx-src b { color: var(--ink-2); font-weight: 500; }
+.mx-src .btn.small { min-height: 30px; padding: 0 10px; font-size: 12.5px; flex: 0 0 auto; }
+#libDlg { width: min(700px, calc(100vw - 32px)); }
+.lib-drop { display: flex; flex-direction: column; gap: 10px; padding: 16px 18px; border: 1px dashed var(--line-2); border-radius: var(--r); transition: border-color .2s, background .2s; }
+.lib-drop.over { border-color: var(--gold); background: rgba(216, 181, 122, 0.08); }
+.lib-drop p { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--ink-2); }
+.lib-drop p b { color: var(--ink); font-weight: 600; }
+.lib-drop .hint { font-size: 12.5px; color: var(--ink-3); }
+.lib-btns { display: flex; flex-wrap: wrap; gap: 8px; }
+.lrow { grid-template-columns: 12px 120px minmax(0, 1fr) auto; padding: 8px 0; }
+.lrow .select { width: 100%; }
+.lrow .select select { min-height: 36px; font-size: 13px; }
+.lib-all[hidden] { display: none; }
+.lib-all summary { cursor: pointer; padding: 6px 0; font-size: 13.5px; color: var(--ink-2); }
+.lib-all summary:hover { color: var(--ink); }
+#libItems { max-height: 260px; overflow-y: auto; }
+.litem { display: grid; grid-template-columns: minmax(0, 1fr) 150px auto auto; gap: 6px; align-items: center; padding: 6px 0; border-top: 1px solid var(--line); }
+.litem .ln { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.litem .select { width: 100%; }
+.litem .select select { min-height: 32px; font-size: 12.5px; }
+.litem .cap { display: inline-flex; align-items: center; justify-content: center; width: 32px; min-height: 32px; padding: 0; border-radius: var(--r); border: 1px solid var(--line-2); background: transparent; }
+.litem .cap:hover { border-color: var(--gold); }
+.litem .cap.ghost { border-color: transparent; }
+.litem .cap svg { width: 13px; height: 13px; }
+@media (max-width: 560px) {
+  .lrow { grid-template-columns: 12px minmax(0, 1fr) auto; }
+  .lrow .select { grid-column: 2 / 4; grid-row: 2; }
+  .litem { grid-template-columns: minmax(0, 1fr) auto auto; }
+  .litem .select { grid-column: 1 / 4; grid-row: 2; }
+}
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
   html { scroll-behavior: auto; }

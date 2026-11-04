@@ -5,6 +5,7 @@
   const $ = (id) => document.getElementById(id);
   const P = BV.pitch;
   const V = BV.voicefx;
+  const esc = (t) => String(t).replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 
   const RULER = 28, MIN_CELL = 16;
   let ROW = 46, LANE = 96;
@@ -51,6 +52,8 @@
     fxOn: { vol: true, glide: true, vib: true, ar: true, garra: true, vogal: true, ...(saved.fxOn || {}) },
     voiceCal: store.get('bv.voicecal', {}),
     mix: BV.mix.merge(saved.mix),
+    kit: BV.sounds.KITS.some((k) => k.id === saved.kit) ? saved.kit : 'beatvox',
+    slots: saved.slots && typeof saved.slots === 'object' ? { ...saved.slots } : {}, // lugar → id do sample na biblioteca
     loops: saved.loops || 1,
     latencyMs: saved.latencyMs ?? null,
     withVoice: false,
@@ -64,7 +67,7 @@
       keySetting: saved.leadKey ?? 'auto',     // 'auto' ou 0..11
       scale: saved.leadScale || 'auto',        // 'auto' ou id da escala
       octave: saved.leadOctave || 0,
-      preset: saved.leadPreset || 'synth',
+      preset: BV.sounds.LEADS.some((x) => x.id === saved.leadPreset) ? saved.leadPreset : 'synth',
       overBeat: saved.leadOverBeat ?? true,
       lo: 48, hi: 72,
       lastLen: 2,
@@ -76,7 +79,28 @@
     headphones: state.headphones, sensitivity: state.sensitivity, latencyMs: state.latencyMs,
     leadKey: state.lead.keySetting, leadScale: state.lead.scale, leadOctave: state.lead.octave,
     leadPreset: state.lead.preset, leadOverBeat: state.lead.overBeat, name: state.name, loops: state.loops, fxOn: state.fxOn, mix: state.mix,
+    kit: state.kit, slots: state.slots,
   });
+
+  // ---------- sons: kit, instrumento da melodia e os teus samples ----------
+  const SND = BV.sounds, LIB = SND.library;
+  /** o que o motor toca agora: kit de bateria e samples escolhidos (AudioBuffers da biblioteca) */
+  function soundsNow() {
+    const s = { kit: state.kit, drums: {}, bass: null, lead: null };
+    for (const d of DRUMS) { const it = LIB.get(state.slots[d.id]); if (it) s.drums[d.id] = it.buf; }
+    const b = LIB.get(state.slots.bass), l = LIB.get(state.slots.lead);
+    if (b) s.bass = { buf: b.buf, root: b.root ?? 36 };
+    if (l) s.lead = { buf: l.buf, root: l.root ?? 60 };
+    return s;
+  }
+  /** nome do som de um lugar ("Kit 808", "kick_01.wav", "Pad"…) */
+  function soundName(slot) {
+    const it = LIB.get(state.slots[slot]);
+    if (it) return it.name;
+    if (slot === 'lead') return (SND.LEADS.find((x) => x.id === state.lead.preset) || SND.LEADS[0]).nome;
+    if (slot === 'bass') return '808 sintetizado';
+    return 'Kit ' + (SND.KITS.find((k) => k.id === state.kit) || SND.KITS[0]).nome;
+  }
 
   const stepsPerBeat = () => state.grid / 4;
   const totalSteps = () => state.bars * state.grid;
@@ -692,7 +716,11 @@
     document.querySelectorAll('#view button').forEach((b) => b.classList.toggle('on', b.dataset.v === state.view));
     document.querySelectorAll('#bars button').forEach((b) => b.classList.toggle('on', +b.dataset.v === state.bars));
     document.querySelectorAll('#grid button').forEach((b) => b.classList.toggle('on', +b.dataset.v === state.grid));
-    document.querySelectorAll('#preset button').forEach((b) => b.classList.toggle('on', b.dataset.v === state.lead.preset));
+    $('presetSel').innerHTML = presetOptions();
+    $('kitSel').value = state.kit;
+    const own = DRUMS.filter((d) => LIB.get(state.slots[d.id])).length + ['bass', 'lead'].filter((k) => LIB.get(state.slots[k])).length;
+    $('kitHint').textContent = own ? ` · ${own} ${own === 1 ? 'sample' : 'samples'}` : '';
+    $('kitSel').title = kitHint();
     $('metronome').checked = state.metronome;
     $('btnClick').classList.toggle('on', state.metronome);
     $('btnClick').setAttribute('aria-pressed', state.metronome ? 'true' : 'false');
@@ -1027,6 +1055,8 @@
     if ((kind === 'all' || kind === 'bass') && bassNotes().length) o.bass = looped(bassNotes());
     if ((kind === 'all' || kind === 'lead') && hasLead()) {
       o.lead = looped(state.lead.notes);
+      const L = SND.LEADS.find((x) => x.id === state.lead.preset);
+      if (L && L.gm != null) o.leadProgram = L.gm;
       const fx = leadFxNow();
       if (fx) o.leadAuto = loopFx(fx, state.loops);
     }
@@ -1045,7 +1075,7 @@
     return {
       mix: state.mix, bpm: state.bpm, stepsPerBeat: stepsPerBeat(), totalSteps: totalSteps(), loops: state.loops, leadPreset: state.lead.preset,
       drums: parts.drums ? state.drums.notes : [], lead: parts.lead ? state.lead.notes : [], leadFx: parts.lead ? leadFxNow() : null,
-      bass: parts.bass ? bassNotes() : [], voices: parts.voices ? mixVoices() : [], ...extra,
+      bass: parts.bass ? bassNotes() : [], voices: parts.voices ? mixVoices() : [], sounds: soundsNow(), ...extra,
     };
   }
   async function wavMix() {
@@ -1102,6 +1132,8 @@
       leadSettings: { key: L.keySetting, scale: L.scale, octave: L.octave, preset: L.preset, detected: L.detected },
       fxOn: state.fxOn,
       mix: state.mix,
+      kit: state.kit,
+      sounds: Object.fromEntries(SND.SLOTS.map((k) => [k, LIB.get(state.slots[k])]).filter(([, it]) => it).map(([k, it]) => [k, it.name])),
       fx: L.fx ? Object.fromEntries(Object.entries(L.fx).map(([k, v]) => [k, v instanceof Float32Array ? Array.from(v, (x) => (isNaN(x) ? null : Math.round(x * 1000) / 1000)) : v])) : null,
     });
   }
@@ -1130,6 +1162,16 @@
       if (ls.detected) L.detected = ls.detected;
       if (p.fxOn) state.fxOn = { ...state.fxOn, ...p.fxOn };
       if (p.mix) { state.mix = BV.mix.merge(p.mix); engine.setMix(state.mix, state.bpm); }
+      if (SND.KITS.some((k) => k.id === p.kit)) state.kit = p.kit;
+      // samples: voltam se estiverem na tua biblioteca (procurados pelo nome do ficheiro)
+      const missing = [];
+      if (p.sounds && typeof p.sounds === 'object') {
+        state.slots = {};
+        for (const k of SND.SLOTS) if (p.sounds[k]) { const it = LIB.byName(p.sounds[k]); if (it) state.slots[k] = it.id; else missing.push(p.sounds[k]); }
+      }
+      if (L.preset === 'sample' && !state.slots.lead) L.preset = 'synth';
+      if (!SND.LEADS.some((x) => x.id === L.preset)) L.preset = 'synth';
+      engine.setSounds(soundsNow());
       L.fx = null;
       if (p.fx && p.fx.n === n && p.fx.res) {
         L.fx = { res: p.fx.res, n: p.fx.n, sd: p.fx.sd };
@@ -1137,7 +1179,7 @@
       }
       $('bpm').value = state.bpm;
       persist(); refresh();
-      setStatus(`Projeto aberto: ${state.name || 'sem título'} (${state.drums.notes.length} + ${L.notes.length} notas).`, 'ok');
+      setStatus(`Projeto aberto: ${state.name || 'sem título'} (${state.drums.notes.length} + ${L.notes.length} notas).` + (missing.length ? ` Não encontrei na biblioteca: ${missing.join(', ')} (uso o kit).` : ''), missing.length ? 'err' : 'ok');
     } catch (e) {
       setStatus('Não consegui abrir esse ficheiro: ' + e.message + '.', 'err');
     }
@@ -1343,7 +1385,8 @@
   }
   function profKey(id) {
     const e = state.mix.els[id], o = elNotes(id);
-    return JSON.stringify([e.eq, e.p, state.bpm, state.grid, state.bars, id === 'lead' ? state.lead.preset : 0, o && (o.drums || o.lead || o.bass || []).map((x) => x.step + ':' + (x.pitch || 0))]);
+    const src = id === 'lead' ? state.lead.preset + ':' + (state.slots.lead || '') : id === 'bass' ? state.slots.bass || '' : DRUMS.some((d) => d.id === id) ? state.slots[id] || state.kit : 0;
+    return JSON.stringify([e.eq, e.p, state.bpm, state.grid, state.bars, src, o && (o.drums || o.lead || o.bass || []).map((x) => x.step + ':' + (x.pitch || 0))]);
   }
   function scheduleProfiles() {
     clearTimeout(profTimer);
@@ -1359,7 +1402,7 @@
         // só este som, no centro, sem efeitos: interessa a forma do espetro
         const mix = JSON.parse(JSON.stringify(state.mix));
         for (const k in mix.els) Object.assign(mix.els[k], { mute: k !== id, solo: false, vol: 0, pan: 0, dry: true, sends: {} });
-        const r = await engine.render({ bpm: state.bpm, stepsPerBeat: stepsPerBeat(), totalSteps: totalSteps(), loops: 1, leadPreset: state.lead.preset, mix, raw: true, master: false, preroll: false, ...elNotes(id) });
+        const r = await engine.render({ bpm: state.bpm, stepsPerBeat: stepsPerBeat(), totalSteps: totalSteps(), loops: 1, leadPreset: state.lead.preset, mix, raw: true, master: false, preroll: false, sounds: soundsNow(), ...elNotes(id) });
         const pr = MX.spectrumProfile(r.channels, r.sr);
         if (pr) profiles.set(id, { key, ...pr });
         mixNodes();
@@ -1593,8 +1636,9 @@
       <div class="mx-sec">${sliderRow('vol', 'Volume', -30, 6, 0.5, e.vol, dbTxt(e.vol))}${sliderRow('pan', 'Pan', -1, 1, 0.01, e.pan, panTxt(e.pan))}</div>
       <div class="mx-sec"><span class="g-label">EQ</span>${['Graves', 'Médios', 'Agudos'].map((n, i) => sliderRow('eq' + i, n, -12, 12, 0.5, e.eq[i], dbTxt(e.eq[i]))).join('')}</div>
       ${params.length || id === 'lead' ? `<div class="mx-sec"><span class="g-label">Som</span>${id === 'lead'
-        ? `<div class="mx-row"><span class="mx-l">Timbre</span><div class="seg" id="mxPreset">${[['synth', 'Synth'], ['pluck', 'Pluck'], ['sine', 'Suave']].map(([v, n]) => `<button data-v="${v}" class="${state.lead.preset === v ? 'on' : ''}">${n}</button>`).join('')}</div></div>`
-        : params.map((q) => sliderRow('p.' + q.id, q.nome, q.min, q.max, q.step, e.p[q.id], q.fmt(e.p[q.id]))).join('')}</div>` : ''}
+        ? `<div class="mx-row"><span class="mx-l">Timbre</span><div class="select mx-sel"><select id="mxPreset" aria-label="Timbre da melodia">${presetOptions()}</select></div></div>`
+        : params.map((q) => sliderRow('p.' + q.id, q.nome, q.min, q.max, q.step, e.p[q.id], q.fmt(e.p[q.id]))).join('')}
+        ${SND.SLOTS.includes(id) ? `<div class="mx-src"><span>${LIB.get(state.slots[id]) ? 'Sample' : 'Origem'}: <b>${esc(soundName(id))}</b></span><button class="btn small ghost" data-lib title="Escolher outro kit ou um sample teu">Biblioteca</button></div>` : ''}</div>` : ''}
       <div class="mx-sec"><span class="g-label">Saídas</span>
         <div class="mx-row"><span class="mx-l">${dot('master')}Master</span><label class="switch mx-sw" title="Saída direta para o master. Desliga-a para o som só se ouvir através dos efeitos."><input type="checkbox" data-k="dry" ${e.dry !== false ? 'checked' : ''} aria-label="Saída direta para o master" /><i></i></label></div>
         ${fxRows}
@@ -1715,7 +1759,7 @@
       if (MX.canRoute(state.mix, f.id, to)) { f.out = to; mixChanged(false); renderInsp(); }
       return;
     }
-    if (b.closest('#mxPreset')) { state.lead.preset = b.dataset.v; persist(); refresh(); restartIfPlaying(); scheduleProfiles(); renderInsp(); }
+    if (b.dataset.lib != null) { openLib(mixSel); return; }
   });
 
   // ---- acrescentar efeitos ----
@@ -1924,6 +1968,146 @@
   });
   $('btnTrain').addEventListener('click', () => { renderTrainRows(); $('trainDlg').showModal(); });
 
+  // ================= sons: kits, instrumentos e biblioteca =================
+  function presetOptions() {
+    const smp = LIB.get(state.slots.lead);
+    return SND.LEADS.map((x) => `<option value="${x.id}"${x.id === state.lead.preset ? ' selected' : ''}>${x.id === 'sample' ? (smp ? 'O teu sample: ' + esc(smp.name) : 'O teu sample…') : x.nome}</option>`).join('');
+  }
+  function kitHint() {
+    const k = SND.KITS.find((x) => x.id === state.kit) || SND.KITS[0];
+    const own = DRUMS.filter((d) => LIB.get(state.slots[d.id])).length;
+    return k.dica + (own ? ` ${own === DRUMS.length ? 'Todas as peças' : own === 1 ? '1 peça' : own + ' peças'} com samples teus.` : '');
+  }
+  $('kitSel').innerHTML = SND.KITS.map((k) => `<option value="${k.id}">${k.nome}</option>`).join('');
+  /** um compasso curto para ouvires o kit */
+  function demoKit() {
+    if (engine.playing) return; // a tocar já se ouve o kit novo
+    const c = engine.ensureCtx(), t0 = c.currentTime + 0.06, sd = 60 / 96 / 4;
+    [['kick', 0], ['hat', 2], ['snare', 4], ['hat', 6], ['kick', 8], ['kick', 10], ['hat', 10], ['snare', 12], ['openhat', 14]]
+      .forEach(([d, k]) => engine.playDrum(d, t0 + k * sd, d === 'kick' || d === 'snare' ? 115 : 85));
+  }
+  $('kitSel').addEventListener('change', (e) => {
+    state.kit = e.target.value;
+    applySounds();
+    demoKit();
+    setStatus(`Kit ${(SND.KITS.find((k) => k.id === state.kit) || {}).nome}: ${kitHint()}`, 'ok');
+  });
+  /** o motor passa a tocar os sons escolhidos (kit + samples); o palco volta a medir o espetro */
+  function applySounds() {
+    for (const k of Object.keys(state.slots)) if (!LIB.get(state.slots[k])) delete state.slots[k];
+    if (state.lead.preset === 'sample' && !state.slots.lead) state.lead.preset = 'synth';
+    engine.setSounds(soundsNow());
+    persist(); syncControls(); scheduleProfiles();
+    if (mixSel && !mixSel.includes('>')) renderInsp();
+  }
+
+  const SLOT_INFO = () => DRUMS.map((d) => ({ id: d.id, nome: d.nome.replace(/ \(.*\)/, ''), cor: d.cor }))
+    .concat([{ id: 'bass', nome: '808 (baixo)', cor: '#c9895b' }, { id: 'lead', nome: 'Melodia', cor: LEAD_COLOR }]);
+  const CATS = [['kick', 'Bombo'], ['snare', 'Tarola'], ['clap', 'Palmas'], ['hat', 'Hi-hat fechado'], ['openhat', 'Hi-hat aberto'], ['bass', '808 / baixo'], ['lead', 'Melodia'], ['other', 'Outro']];
+  const slotName = (id) => (SLOT_INFO().find((x) => x.id === id) || { nome: id }).nome;
+  function openLib(focus = null) {
+    renderLib();
+    if (!$('libDlg').open) $('libDlg').showModal();
+    if (focus) { const sel = $('libRows').querySelector(`[data-slot="${focus}"]`); if (sel) sel.focus(); }
+    LIB.init().then(() => { if ($('libDlg').open) renderLib(); });
+  }
+  function renderLib() {
+    const items = LIB.items, kit = (SND.KITS.find((k) => k.id === state.kit) || SND.KITS[0]).nome;
+    $('libState').textContent = !LIB.stored ? 'Este browser não deixa guardar samples: ficam só até fechares a página.'
+      : items.length ? `${items.length} ${items.length === 1 ? 'sample guardado' : 'samples guardados'} neste browser. Escolhe abaixo o som de cada lugar.`
+      : 'Ainda não tens samples. Até lá, cada lugar usa os sons sintetizados.';
+    $('libRows').innerHTML = SLOT_INFO().map((sl) => {
+      const cur = state.slots[sl.id] || '', melodic = sl.id === 'bass' || sl.id === 'lead';
+      const mine = items.filter((it) => it.cat === sl.id), rest = items.filter((it) => it.cat !== sl.id);
+      const opt = (it) => `<option value="${it.id}"${it.id === cur ? ' selected' : ''}>${esc(it.name)}${melodic && it.root != null ? ' · ' + P.noteName(it.root, true) : ''}</option>`;
+      const synth = sl.id === 'lead' ? 'Instrumento sintetizado' : sl.id === 'bass' ? '808 sintetizado' : 'Kit ' + kit;
+      return `<div class="trow lrow"><span class="sw" style="background:${sl.cor};color:${sl.cor}"></span>
+        <div class="n">${sl.nome}</div>
+        <div class="select"><select data-slot="${sl.id}" aria-label="Som para ${sl.nome}"><option value="">${synth}</option>${mine.length ? `<optgroup label="${sl.nome}">${mine.map(opt).join('')}</optgroup>` : ''}${rest.length ? `<optgroup label="Outros samples">${rest.map(opt).join('')}</optgroup>` : ''}</select></div>
+        <button type="button" class="cap mini" data-hear="${sl.id}" aria-label="Ouvir ${sl.nome}" title="Ouvir"><svg><use href="#i-play"/></svg></button></div>`;
+    }).join('');
+    $('libCount').textContent = items.length;
+    $('libAll').hidden = !items.length;
+    $('libItems').innerHTML = items.map((it) => `<div class="litem"><span class="ln" title="${esc(it.path || it.name)}">${esc(it.name)}</span>
+      <div class="select"><select data-cat="${it.id}" aria-label="Tipo de ${esc(it.name)}">${CATS.map(([v, n]) => `<option value="${v}"${it.cat === v ? ' selected' : ''}>${n}</option>`).join('')}</select></div>
+      <button type="button" class="cap mini" data-hearitem="${it.id}" aria-label="Ouvir ${esc(it.name)}" title="Ouvir"><svg><use href="#i-play"/></svg></button>
+      <button type="button" class="cap mini ghost" data-rm="${it.id}" aria-label="Apagar ${esc(it.name)}" title="Apagar"><svg><use href="#i-x"/></svg></button></div>`).join('');
+    $('btnLibClear').disabled = !items.length;
+  }
+  function hearSlot(id) {
+    const c = engine.ensureCtx(), t = c.currentTime + 0.03;
+    if (id === 'lead') previewLead(60 + 12 * state.lead.octave);
+    else if (id === 'bass') engine.playBass(36, t, 0.7, 110);
+    else engine.playDrum(id, t, 110);
+  }
+  async function importFiles(entries) {
+    if (!entries.length) return;
+    $('libState').textContent = `A importar ${entries.length} ${entries.length === 1 ? 'ficheiro' : 'ficheiros'}…`;
+    let res;
+    try { res = await LIB.add(entries, (i, n) => { $('libState').textContent = `A importar… ${i + 1} de ${n}`; }); }
+    catch (err) { console.error(err); $('libState').textContent = 'Não consegui importar esses ficheiros.'; return; }
+    const { added, skipped } = res;
+    // um pacote novo entra logo: cada lugar recebe o primeiro sample do pacote que lhe corresponde
+    const placed = [];
+    for (const sl of SND.SLOTS) {
+      const it = added.filter((x) => x.cat === sl).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))[0];
+      if (it) { state.slots[sl] = it.id; placed.push(`${slotName(sl)}: ${it.name}`); }
+    }
+    applySounds();
+    renderLib();
+    const msg = added.length
+      ? `${added.length} ${added.length === 1 ? 'sample importado' : 'samples importados'}` + (placed.length ? ` (${placed.join(' · ')})` : '') + (skipped.length ? `. ${skipped.length} ignorados (não são áudio ou não se leem).` : '.')
+        + (state.slots.lead && state.lead.preset !== 'sample' && placed.some((x) => x.startsWith('Melodia')) ? ' Para a melodia, escolhe "O teu sample" no Som.' : '')
+      : `Nenhum sample importado${skipped.length ? `: ${skipped.length} ficheiros não são áudio ou não se leem` : ''}.`;
+    $('libState').textContent = msg;
+    setStatus(msg, added.length ? 'ok' : 'err');
+  }
+  $('btnLib').addEventListener('click', () => openLib());
+  $('btnLibFiles').addEventListener('click', () => $('libIn').click());
+  $('btnLibFolder').addEventListener('click', () => $('libDirIn').click());
+  for (const id of ['libIn', 'libDirIn']) $(id).addEventListener('change', (e) => {
+    const fs = [...(e.target.files || [])].map((f) => ({ file: f, path: f.webkitRelativePath || f.name }));
+    e.target.value = '';
+    importFiles(fs);
+  });
+  const drop = $('libDrop');
+  $('libDlg').addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('over'); });
+  $('libDlg').addEventListener('dragleave', (e) => { if (!$('libDlg').contains(e.relatedTarget)) drop.classList.remove('over'); });
+  $('libDlg').addEventListener('drop', async (e) => {
+    e.preventDefault(); drop.classList.remove('over');
+    importFiles(await SND.fromDrop(e.dataTransfer));
+  });
+  $('libRows').addEventListener('change', (e) => {
+    const slot = e.target.dataset.slot;
+    if (!slot) return;
+    if (e.target.value) state.slots[slot] = e.target.value; else delete state.slots[slot];
+    if (slot === 'lead') state.lead.preset = e.target.value ? 'sample' : state.lead.preset === 'sample' ? 'synth' : state.lead.preset;
+    applySounds();
+    restartIfPlaying();
+    hearSlot(slot);
+  });
+  $('libRows').addEventListener('click', (e) => { const b = e.target.closest('[data-hear]'); if (b) hearSlot(b.dataset.hear); });
+  $('libItems').addEventListener('change', async (e) => {
+    const id = e.target.dataset.cat;
+    if (!id) return;
+    await LIB.update(id, { cat: e.target.value });
+    renderLib();
+  });
+  $('libItems').addEventListener('click', async (e) => {
+    const h = e.target.closest('[data-hearitem]'), r = e.target.closest('[data-rm]');
+    if (h) { const it = LIB.get(h.dataset.hearitem), c = engine.ensureCtx(); if (it) SND.playSample(c, it.buf, c.currentTime + 0.02, engine.master, { gain: 0.8 }); }
+    if (r) { await LIB.remove(r.dataset.rm); applySounds(); renderLib(); }
+  });
+  $('btnLibClear').addEventListener('click', async () => {
+    if (!confirm('Apagar todos os samples da biblioteca deste browser?')) return;
+    await LIB.clear(); state.slots = {}; applySounds(); renderLib();
+    setStatus('Biblioteca apagada. Voltaste aos sons sintetizados.');
+  });
+  $('libDlg').addEventListener('close', () => refresh());
+  // os samples guardados carregam em segundo plano; quando chegarem, entram no som
+  engine.setSounds(soundsNow());
+  LIB.init().then(() => { engine.setSounds(soundsNow()); syncControls(); scheduleProfiles(); });
+
   // ================= ligações =================
   document.querySelectorAll('#view button').forEach((b) => b.addEventListener('click', () => setView(b.dataset.v)));
   document.querySelectorAll('[data-bpm]').forEach((b) => b.addEventListener('click', () => setBpm(state.bpm + +b.dataset.bpm)));
@@ -2050,11 +2234,16 @@
     fitRange();
     persist(); refresh(); restartIfPlaying();
   }));
-  document.querySelectorAll('#preset button').forEach((b) => b.addEventListener('click', () => {
-    state.lead.preset = b.dataset.v;
-    persist(); syncControls(); restartIfPlaying();
+  function setPreset(v) {
+    if (v === 'sample' && !LIB.get(state.slots.lead)) { syncControls(); openLib('lead'); return; }
+    state.lead.preset = v;
+    persist(); syncControls(); restartIfPlaying(); scheduleProfiles();
+    if (mixSel === 'lead') renderInsp();
     previewLead(60 + 12 * state.lead.octave);
-  }));
+  }
+  $('presetSel').addEventListener('change', (e) => setPreset(e.target.value));
+  $('mixInsp').addEventListener('change', (e) => { if (e.target.id === 'mxPreset') setPreset(e.target.value); });
+  $('btnLibLead').addEventListener('click', () => openLib('lead'));
   $('overBeat').addEventListener('change', (e) => { state.lead.overBeat = e.target.checked; persist(); });
 
   document.addEventListener('keydown', (e) => {

@@ -149,6 +149,10 @@
           </ul>
           <button id="btnRec" class="rec" title="Gravar (R)"><span class="rec-ring" aria-hidden="true"></span><span class="rec-core" aria-hidden="true"></span><span class="rec-label">Gravar</span></button>
           <button id="btnOpen" class="btn small"><svg><use href="#i-open"/></svg>Abrir áudio</button>
+          <section class="mini sound-card">
+            <div class="field"><label for="kitSel">Kit</label><div class="select"><select id="kitSel"></select></div></div>
+            <button id="btnLib" class="btn small ghost lib-btn"><svg><use href="#i-file"/></svg>Biblioteca de sons<span id="kitHint" class="lib-own"></span></button>
+          </section>
           <section id="trainCard" class="mini">
             <p class="hint" id="trainState">A comparar os teus sons entre si: o mais grave é o bombo, o mais agudo o hi-hat.</p>
             <button id="btnTrain" class="btn small ghost">Treinar com a minha voz</button>
@@ -187,10 +191,8 @@
               <span class="flabel">Oitava</span>
               <div class="stepper"><button data-oct="-1" aria-label="Oitava abaixo">−</button><output id="octOut">0</output><button data-oct="1" aria-label="Oitava acima">+</button></div>
             </div>
-            <div class="field col">
-              <span class="flabel">Som</span>
-              <div class="seg" id="preset"><button data-v="synth">Synth</button><button data-v="pluck">Pluck</button><button data-v="sine">Suave</button></div>
-            </div>
+            <div class="field"><label for="presetSel">Som</label><div class="select"><select id="presetSel"></select></div></div>
+            <button id="btnLibLead" class="btn small ghost">Usar um sample teu</button>
           </section>
           <button class="btn primary next" data-go="4">Seguinte: mistura</button>
         </aside>
@@ -355,6 +357,34 @@
     </form>
   </dialog>
 
+  <dialog id="libDlg" aria-labelledby="libTitle">
+    <form method="dialog" class="dlg lib">
+      <header>
+        <h3 id="libTitle">Biblioteca de sons</h3>
+        <button class="icon-btn" value="close" aria-label="Fechar"><svg><use href="#i-x"/></svg></button>
+      </header>
+      <div class="lib-drop" id="libDrop">
+        <p><b>Arrasta para aqui samples ou uma pasta inteira</b> (WAV, MP3, AIFF, OGG, FLAC). Pelo nome (kick, snare, hat, clap, 808…) cada som vai logo para o sítio certo.</p>
+        <div class="lib-btns">
+          <button type="button" class="btn small" id="btnLibFiles">Escolher ficheiros</button>
+          <button type="button" class="btn small ghost" id="btnLibFolder">Escolher pasta</button>
+        </div>
+        <p class="hint" id="libState"></p>
+      </div>
+      <div id="libRows"></div>
+      <details class="lib-all" id="libAll">
+        <summary>Todos os samples (<span id="libCount">0</span>)</summary>
+        <div id="libItems"></div>
+      </details>
+      <footer>
+        <button type="button" class="btn small ghost" id="btnLibClear">Apagar a biblioteca</button>
+        <button class="btn small primary" value="close">Feito</button>
+      </footer>
+    </form>
+  </dialog>
+  <input type="file" id="libIn" accept="audio/*,.wav,.aif,.aiff,.mp3,.m4a,.ogg,.flac" multiple hidden />
+  <input type="file" id="libDirIn" webkitdirectory multiple hidden />
+
   <dialog id="calDlg">
     <form method="dialog" class="dlg">
       <header>
@@ -376,6 +406,7 @@
   <script src="js/voicefx.js"></script>
   <script src="js/midi.js"></script>
   <script src="js/mixer.js"></script>
+  <script src="js/sounds.js"></script>
   <script src="js/audio.js"></script>
   <script src="js/zip.js"></script>
   <script src="js/knob.js"></script>

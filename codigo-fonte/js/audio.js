@@ -184,6 +184,12 @@
     /** 808: seno grave com "punch" de altura no ataque, decaimento longo e saturação no canal */
     playBass(pitch, t, dur, vel = 100) {
       const c = this.ctx, P = this.mixP('bass');
+      const smp = this.sounds && this.sounds.bass;
+      if (smp && smp.buf && BV.sounds) { // o teu 808: afinado para a nota, cortado no fim (com o decaimento do canal)
+        const end = t + Math.max(0.12, dur) * Math.min(1.5, (P.decay || 0.8) / 0.8);
+        BV.sounds.playSample(c, smp.buf, t, this.stripIn('bass'), { rate: Math.pow(2, (pitch + (P.tune || 0) - smp.root) / 12), gain: 0.85 * Math.max(0.1, vel / 127), end, release: 0.05 });
+        return;
+      }
       const f = 440 * Math.pow(2, (pitch + (P.tune || 0) - 69) / 12);
       const v = 0.75 * Math.max(0.1, vel / 127), dk = P.decay || 0.8;
       const o = c.createOscillator(), gn = c.createGain();
@@ -201,54 +207,13 @@
 
     playDrum(id, t, vel = 100) {
       const c = this.ctx;
-      const v = Math.max(0.05, vel / 127);
-      const P = this.mixP(id), tn = P.tune || 0, dk = P.decay || 1, tone = P.tone || 1;
       const out = c.createGain();
-      out.gain.value = v;
+      out.gain.value = Math.max(0.05, vel / 127);
       out.connect(this.stripIn(id));
-      if (id === 'kick') {
-        const o = c.createOscillator(), gn = c.createGain();
-        const kt = Math.pow(2, tn / 12);
-        o.frequency.setValueAtTime(160 * kt, t);
-        o.frequency.exponentialRampToValueAtTime(48 * kt, t + 0.12);
-        gn.gain.setValueAtTime(1, t);
-        gn.gain.exponentialRampToValueAtTime(0.001, t + 0.45 * dk);
-        o.connect(gn).connect(out);
-        o.start(t); o.stop(t + 0.5 * dk + 0.02);
-        // clique de ataque
-        const n = this.noiseSrc(t, 0.01), ng = c.createGain(), lp = c.createBiquadFilter();
-        lp.type = 'lowpass'; lp.frequency.value = 3000;
-        ng.gain.setValueAtTime(0.3, t); ng.gain.exponentialRampToValueAtTime(0.001, t + 0.01);
-        n.connect(lp).connect(ng).connect(out);
-      } else if (id === 'snare') {
-        const n = this.noiseSrc(t, 0.25 * dk + 0.05), ng = c.createGain(), hp = c.createBiquadFilter();
-        hp.type = 'highpass'; hp.frequency.value = 1200 * tone;
-        ng.gain.setValueAtTime(0.7, t); ng.gain.exponentialRampToValueAtTime(0.001, t + 0.2 * dk);
-        n.connect(hp).connect(ng).connect(out);
-        const o = c.createOscillator(), og = c.createGain();
-        o.type = 'triangle'; o.frequency.setValueAtTime(220 * tone, t); o.frequency.exponentialRampToValueAtTime(160 * tone, t + 0.08);
-        og.gain.setValueAtTime(0.6, t); og.gain.exponentialRampToValueAtTime(0.001, t + 0.1 * dk);
-        o.connect(og).connect(out); o.start(t); o.stop(t + 0.1 * dk + 0.02);
-      } else if (id === 'clap') {
-        const bp = c.createBiquadFilter(), ng = c.createGain();
-        bp.type = 'bandpass'; bp.frequency.value = 1400 * tone; bp.Q.value = 0.8;
-        bp.connect(ng).connect(out);
-        ng.gain.setValueAtTime(0.0001, t);
-        [0, 0.012, 0.024].forEach((d) => {
-          ng.gain.setValueAtTime(0.9, t + d);
-          ng.gain.exponentialRampToValueAtTime(0.1, t + d + 0.01);
-        });
-        ng.gain.setValueAtTime(0.6, t + 0.034);
-        ng.gain.exponentialRampToValueAtTime(0.001, t + 0.034 + 0.19 * dk);
-        this.noiseSrc(t, 0.06 + 0.2 * dk).connect(bp);
-      } else if (id === 'hat' || id === 'openhat') {
-        const dur = (id === 'hat' ? 0.05 : 0.32) * dk;
-        const n = this.noiseSrc(t, dur + 0.02), hp = c.createBiquadFilter(), ng = c.createGain();
-        hp.type = 'highpass'; hp.frequency.value = Math.min(16000, 7000 * tone);
-        ng.gain.setValueAtTime(0.45, t); ng.gain.exponentialRampToValueAtTime(0.001, t + dur);
-        n.connect(hp).connect(ng).connect(out);
-      }
+      BV.sounds.drum(this, this.sounds || { kit: 'beatvox' }, id, t, out, this.mixP(id));
     }
+    /** sons em uso: { kit, drums: {id: AudioBuffer}, bass: {buf, root}, lead: {buf, root} } */
+    setSounds(s) { this.sounds = s; }
 
     // ---------- Gravação ----------
     /**
@@ -429,50 +394,11 @@
     // ---------- Sintetizador de lead ----------
     playLead(pitch, t, dur, vel = 100, preset = 'synth') {
       const c = this.ctx;
-      const f = 440 * Math.pow(2, (pitch - 69) / 12);
-      const v = (0.12 + 0.18 * (vel / 127));
       const out = c.createGain();
       out.connect(this.leadBus ? this.leadBus.input : this.master);
-      const bend = (o) => { if (this.leadBus && this.leadBus.bend) this.leadBus.bend.connect(o.detune); return o; };
-      const end = t + Math.max(0.05, dur);
-      if (preset === 'pluck') {
-        const o = bend(c.createOscillator()), lp = c.createBiquadFilter();
-        o.type = 'square'; o.frequency.value = f;
-        lp.type = 'lowpass'; lp.Q.value = 2;
-        lp.frequency.setValueAtTime(Math.min(12000, f * 14), t);
-        lp.frequency.exponentialRampToValueAtTime(Math.max(200, f * 1.5), t + 0.25);
-        const stopAt = Math.min(end + 0.1, t + 0.9);
-        out.gain.setValueAtTime(0.0001, t);
-        out.gain.exponentialRampToValueAtTime(v * 1.1, t + 0.004);
-        out.gain.exponentialRampToValueAtTime(0.0001, stopAt);
-        o.connect(lp).connect(out); o.start(t); o.stop(stopAt + 0.02);
-      } else if (preset === 'sine') {
-        const o = bend(c.createOscillator()), o2 = bend(c.createOscillator()), g2 = c.createGain();
-        o.type = 'sine'; o.frequency.value = f;
-        o2.type = 'triangle'; o2.frequency.value = f * 2; g2.gain.value = 0.15;
-        out.gain.setValueAtTime(0.0001, t);
-        out.gain.exponentialRampToValueAtTime(v * 1.3, t + 0.012);
-        out.gain.setValueAtTime(v * 1.3, end);
-        out.gain.exponentialRampToValueAtTime(0.0001, end + 0.12);
-        o.connect(out); o2.connect(g2).connect(out);
-        o.start(t); o2.start(t); o.stop(end + 0.15); o2.stop(end + 0.15);
-      } else {
-        const lp = c.createBiquadFilter();
-        lp.type = 'lowpass'; lp.Q.value = 4;
-        lp.frequency.setValueAtTime(f * 2, t);
-        lp.frequency.exponentialRampToValueAtTime(Math.min(9000, f * 9), t + 0.03);
-        lp.frequency.exponentialRampToValueAtTime(Math.min(5000, f * 4), t + 0.3);
-        out.gain.setValueAtTime(0.0001, t);
-        out.gain.exponentialRampToValueAtTime(v, t + 0.006);
-        out.gain.setValueAtTime(v * 0.8, end);
-        out.gain.exponentialRampToValueAtTime(0.0001, end + 0.09);
-        lp.connect(out);
-        [-7, 7].forEach((cents) => {
-          const o = bend(c.createOscillator());
-          o.type = 'sawtooth'; o.frequency.value = f; o.detune.value = cents;
-          o.connect(lp); o.start(t); o.stop(end + 0.12);
-        });
-      }
+      const bendSrc = this.leadBus && this.leadBus.bend;
+      const bend = (o) => { if (bendSrc) bendSrc.connect(o.detune); return o; };
+      BV.sounds.lead(c, { pitch, t, dur, vel, preset, out, bend, bendSrc, noise: this.noise, sample: this.sounds && this.sounds.lead });
     }
 
     /** Calibração: o utilizador bate palmas em cada tempo durante 2 compassos. Devolve latência (s). */
@@ -582,6 +508,7 @@
       r.noise = c.createBuffer(1, sr, sr);
       const d = r.noise.getChannelData(0);
       for (let i = 0; i < sr; i++) d[i] = Math.random() * 2 - 1;
+      r.sounds = o.sounds || this.sounds || null;
       r.master = c.createGain();
       r.master.gain.value = 0.9;
       if (useMaster) r.master.connect(makeComp(c, 0)).connect(c.destination);

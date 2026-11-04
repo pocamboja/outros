@@ -80,7 +80,7 @@
   }
 
   /**
-   * @param {{drums?:Array, lead?:Array, leadAuto?:object, bpm:number, stepsPerBeat:number, totalSteps:number}} o
+   * @param {{drums?:Array, lead?:Array, leadAuto?:object, leadProgram?:number, bpm:number, stepsPerBeat:number, totalSteps:number}} o
    * @returns {Uint8Array}
    */
   function build(o) {
@@ -88,7 +88,9 @@
     const endT = Math.round(o.totalSteps * stepTicks);
     const parts = [];
     if (o.drums) parts.push(['BeatVox Bateria', drumEvents(o.drums, stepTicks)]);
-    if (o.lead) parts.push(['BeatVox Lead', leadEvents(o.lead, stepTicks).concat(o.leadAuto ? autoEvents(o.leadAuto, stepTicks) : [])]);
+    // programa General MIDI do instrumento escolhido (num DAW podes trocar à vontade)
+    const prog = o.leadProgram != null ? [{ t: 0, order: -20, data: [0xc0, o.leadProgram & 127] }] : [];
+    if (o.lead) parts.push(['BeatVox Lead', prog.concat(leadEvents(o.lead, stepTicks), o.leadAuto ? autoEvents(o.leadAuto, stepTicks) : [])]);
     if (o.bass) parts.push(['BeatVox 808', leadEvents(o.bass, stepTicks, 1)]);
     let tracks;
     if (parts.length === 1) {
