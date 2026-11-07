@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="color-scheme" content="dark" />
   <title>BeatVox</title>
+  <script>/* dentro do Estúdio a barra de topo do hub substitui a do BeatVox */ try { if (window.parent !== window && window.parent.Studio) document.documentElement.classList.add('in-studio'); } catch (e) {}</script>
   <link rel="stylesheet" href="css/fonts.css" />
   <link rel="stylesheet" href="css/style.css" />
 </head>
@@ -20,10 +21,8 @@
     <symbol id="i-file" viewBox="0 0 24 24"><path d="M7 3.5h7l4 4V20a.5.5 0 0 1-.5.5h-10.5A.5.5 0 0 1 6.5 20V4a.5.5 0 0 1 .5-.5z M14 3.5V8h4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M9.5 16.5v-4l4-1v4" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="8.6" cy="16.6" r="1.1" fill="currentColor"/><circle cx="12.6" cy="15.6" r="1.1" fill="currentColor"/></symbol>
   </svg>
 
-  <canvas id="bg" aria-hidden="true"></canvas>
   <div class="atmos" aria-hidden="true"></div>
   <canvas id="eq" aria-hidden="true"></canvas>
-  <div class="grain" aria-hidden="true"></div>
 
   <!-- ============ HUD fixo ============ -->
   <header class="hud">
@@ -37,16 +36,11 @@
     </div>
   </header>
 
-  <nav class="rail" aria-label="Movimentos">
-    <div class="rail-line"><i id="railFill"></i></div>
-    <ol>
-      <li><button data-go="0"><b>I</b><span>Abertura</span></button></li>
-      <li><button data-go="1"><b>II</b><span>Andamento</span></button></li>
-      <li><button data-go="2"><b>III</b><span>Bateria</span></button></li>
-      <li><button data-go="3"><b>IV</b><span>Melodia</span></button></li>
-      <li><button data-go="4"><b>V</b><span>Mistura</span></button></li>
-      <li><button data-go="5"><b>VI</b><span>Exportar</span></button></li>
-    </ol>
+  <!-- passos: só o lugar onde estás, e anterior / seguinte -->
+  <nav class="pager" aria-label="Passos">
+    <button type="button" id="pgPrev" aria-label="Passo anterior"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3.5 5.5 8l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <span id="pgLabel" aria-live="polite"><b>1</b> / 6 · Início</span>
+    <button type="button" id="pgNext" aria-label="Passo seguinte"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
   </nav>
 
   <div class="hud-status" role="status" aria-live="polite"><i class="pulse" aria-hidden="true"></i><span id="status">Pronto. Põe auscultadores e começa.</span></div>
@@ -55,31 +49,31 @@
   <main class="stage">
 
     <!-- I Abertura -->
-    <section class="step s-intro" data-step="0" aria-label="Abertura">
+    <section class="step s-intro" data-step="0" aria-label="Início">
       <div class="step-inner">
         <div class="intro-copy">
-          <p class="kicker" data-depth="0.15">Op. 1, para voz e MIDI</p>
-          <h1 class="display" data-depth="0.3">A tua voz<br />é o instrumento.</h1>
-          <p class="lede" data-depth="0.6">Faz beatbox e recebe a bateria. Canta uma melodia e recebe as notas, já no tom certo. Pronto para o FL Studio ou o Ableton, tudo no teu browser.</p>
-          <div class="actions" data-depth="0.9">
+          <p class="kicker">Voz → bateria, melodia e MIDI</p>
+          <h1 class="display">A tua voz<br />é o instrumento.</h1>
+          <p class="lede">Faz beatbox e recebe a bateria. Canta uma melodia e recebe as notas, já no tom certo. Pronto para o FL Studio ou o Ableton, tudo no teu browser.</p>
+          <div class="actions">
             <button class="btn primary" data-go="1">Começar</button>
             <button class="btn" data-go="2">Ir direto à bateria</button>
           </div>
         </div>
-        <div class="scroll-cue" aria-hidden="true"><span>Faz scroll</span><i></i></div>
+        <div class="scroll-cue" aria-hidden="true"><span>Desliza para baixo para continuar</span></div>
       </div>
     </section>
 
     <!-- II Andamento -->
     <section class="step s-tempo" data-step="1" aria-label="Andamento">
       <div class="step-inner">
-        <div class="step-head" data-depth="0.2">
-          <span class="movement">II</span>
+        <div class="step-head">
+          <span class="movement">2 / 6</span>
           <h2 class="title">Andamento</h2>
           <p class="sub">Escolhe a velocidade e o tamanho do loop, e confirma que o microfone te ouve bem.</p>
         </div>
 
-        <div class="tempo-core" data-depth="0.5">
+        <div class="tempo-core">
           <button class="nudge" data-bpm="-1" aria-label="Diminuir BPM">−</button>
           <div class="bpm-big">
             <input id="bpm" type="number" min="50" max="200" value="90" aria-label="Andamento em BPM" />
@@ -87,12 +81,12 @@
           </div>
           <button class="nudge" data-bpm="1" aria-label="Aumentar BPM">+</button>
         </div>
-        <div class="tempo-actions" data-depth="0.6">
+        <div class="tempo-actions">
           <button class="btn" id="btnMetro">Ouvir o clique</button>
           <button class="btn tap" id="btnTap">Marcar o tempo</button>
         </div>
 
-        <div class="tempo-grid" data-depth="0.8">
+        <div class="tempo-grid">
           <div class="group">
             <span class="g-label">Compassos</span>
             <div class="seg" id="bars"><button data-v="1">1</button><button data-v="2">2</button><button data-v="4">4</button></div>
@@ -131,15 +125,15 @@
             </div>
           </div>
         </div>
-        <button class="btn primary next" data-go="2" data-depth="1">Seguinte: gravar a bateria</button>
+        <button class="btn primary next" data-go="2">Seguinte: gravar a bateria</button>
       </div>
     </section>
 
     <!-- III Bateria -->
     <section class="step s-studio s-drums" data-step="2" aria-label="Bateria">
       <div class="step-inner studio-layout">
-        <aside class="panel" data-depth="0.4">
-          <span class="movement">III</span>
+        <aside class="panel">
+          <span class="movement">3 / 6</span>
           <h2 class="title">Bateria</h2>
           <p class="sub">Faz beatbox depois da contagem.</p>
           <ul class="vocab">
@@ -149,6 +143,10 @@
           </ul>
           <button id="btnRec" class="rec" title="Gravar (R)"><span class="rec-ring" aria-hidden="true"></span><span class="rec-core" aria-hidden="true"></span><span class="rec-label">Gravar</span></button>
           <button id="btnOpen" class="btn small"><svg><use href="#i-open"/></svg>Abrir áudio</button>
+          <section class="mini sound-card">
+            <div class="field"><label for="kitSel">Kit</label><div class="select"><select id="kitSel"></select></div></div>
+            <button id="btnLib" class="btn small ghost lib-btn"><svg><use href="#i-file"/></svg>Biblioteca de sons<span id="kitHint" class="lib-own"></span></button>
+          </section>
           <section id="trainCard" class="mini">
             <p class="hint" id="trainState">A comparar os teus sons entre si: o mais grave é o bombo, o mais agudo o hi-hat.</p>
             <button id="btnTrain" class="btn small ghost">Treinar com a minha voz</button>
@@ -162,8 +160,8 @@
     <!-- IV Melodia -->
     <section class="step s-studio s-lead" data-step="3" aria-label="Melodia">
       <div class="step-inner studio-layout">
-        <aside class="panel" data-depth="0.4">
-          <span class="movement">IV</span>
+        <aside class="panel">
+          <span class="movement">4 / 6</span>
           <h2 class="title">Melodia</h2>
           <p class="sub">Canta com vogais longas: lá, na-na, du-du.</p>
           <button id="btnRecLead" class="rec" title="Gravar (R)"><span class="rec-ring" aria-hidden="true"></span><span class="rec-core" aria-hidden="true"></span><span class="rec-label">Gravar</span></button>
@@ -187,10 +185,8 @@
               <span class="flabel">Oitava</span>
               <div class="stepper"><button data-oct="-1" aria-label="Oitava abaixo">−</button><output id="octOut">0</output><button data-oct="1" aria-label="Oitava acima">+</button></div>
             </div>
-            <div class="field col">
-              <span class="flabel">Som</span>
-              <div class="seg" id="preset"><button data-v="synth">Synth</button><button data-v="pluck">Pluck</button><button data-v="sine">Suave</button></div>
-            </div>
+            <div class="field"><label for="presetSel">Som</label><div class="select"><select id="presetSel"></select></div></div>
+            <button id="btnLibLead" class="btn small ghost">Usar um sample teu</button>
           </section>
           <button class="btn primary next" data-go="4">Seguinte: mistura</button>
         </aside>
@@ -200,21 +196,29 @@
 
     <!-- V Mistura: palco 3D -->
     <section class="step s-mix" data-step="4" aria-label="Mistura">
-      <canvas id="stage3d" aria-label="Palco 3D da mistura: cada camada é uma dimensão do som"></canvas>
+      <canvas id="stage3d" tabindex="0" aria-label="Palco 3D da mistura: cada camada é uma dimensão do som. Setas: escolher som ou efeito."></canvas>
       <div class="step-inner mix-layout">
-        <header class="mix-head" data-depth="0.3">
-          <span class="movement">V</span>
+        <header class="mix-head">
+          <span class="movement">5 / 6</span>
           <h2 class="title">Mistura</h2>
-          <p class="sub">Cada camada é uma dimensão do som, dos graves (em baixo) aos agudos (em cima). Arrasta um som para os lados (pan) ou para a frente (mais alto). Arrasta o fundo para rodar.</p>
+          <p class="sub">Cada camada é uma dimensão do som, dos graves (em baixo) aos agudos (em cima). Arrasta um som para os lados (pan) ou para a frente (mais alto). Clica num som, num efeito ou numa ligação para o ajustar; puxa o <b>+</b> de um som até um efeito para o ligar.</p>
         </header>
-        <aside class="panel mix-insp" id="mixInsp" data-depth="0.5" aria-label="Ajustes do som"></aside>
-        <div class="mix-bar" data-depth="0.6">
+        <aside class="panel mix-insp" id="mixInsp" aria-label="Ajustes" hidden></aside>
+        <div class="mix-bar">
+          <div class="fx-add">
+            <button class="btn small" id="btnAddFx" aria-haspopup="menu" aria-expanded="false" title="Acrescentar um efeito ao palco">+ Efeito</button>
+            <div class="fx-menu" id="fxMenu" role="menu" aria-label="Efeitos" hidden></div>
+          </div>
+          <div class="group">
+            <span class="g-label">Vista</span>
+            <div class="seg" id="viewSeg"><button data-v="free" class="on" title="Livre: arrasta para rodar">Livre</button><button data-v="front" title="De frente: pan × frequência">Frente</button><button data-v="top" title="De cima: pan × volume">Cima</button></div>
+          </div>
           <div class="group">
             <span class="g-label">Dimensões</span>
             <div class="seg" id="dimsSeg"><button data-v="3">3</button><button data-v="6">6</button></div>
           </div>
           <label class="switch" title="Um baixo 808 que toca com o bombo, no tom da melodia"><input type="checkbox" id="bassOn" /><i></i>Baixo 808</label>
-          <label class="switch"><input type="checkbox" id="autoRot" checked /><i></i>Rodar</label>
+          <label class="switch"><input type="checkbox" id="autoRot" /><i></i>Rodar</label>
           <div class="zoom-btns">
             <button class="icon-btn" id="zoomIn" title="Aproximar" aria-label="Aproximar">+</button>
             <button class="icon-btn" id="zoomOut" title="Afastar" aria-label="Afastar">−</button>
@@ -228,12 +232,12 @@
     <!-- VI Exportar -->
     <section class="step s-export" data-step="5" aria-label="Exportar">
       <div class="step-inner">
-        <div class="step-head" data-depth="0.2">
-          <span class="movement">VI</span>
+        <div class="step-head">
+          <span class="movement">6 / 6</span>
           <h2 class="title big">O teu disco está pronto.</h2>
         </div>
         <div class="press">
-          <figure class="cover" data-depth="0.5">
+          <figure class="cover">
             <canvas id="cover" width="1120" height="1120" aria-label="Capa do teu beat"></canvas>
             <button id="btnCoverPlay" class="cover-play" title="Ouvir (Espaço)" aria-label="Ouvir"><svg><use href="#i-play"/></svg></button>
             <figcaption class="cover-cap">
@@ -243,7 +247,7 @@
               <span id="sumKeyWrap"><output id="sumKey">—</output></span>
             </figcaption>
           </figure>
-          <div class="press-side" data-depth="0.8">
+          <div class="press-side">
             <div class="press-opts">
               <label class="name-field"><span class="g-label">Nome</span><input id="projName" type="text" maxlength="40" spellcheck="false" placeholder="Sem título" autocomplete="off" /></label>
               <div class="group">
@@ -261,7 +265,7 @@
                 </div>
               </li>
               <li>
-                <div class="out-txt"><b>Áudio WAV</b><span>O beat já tocado, 44,1 kHz. Stems: bateria e melodia em ficheiros separados.</span></div>
+                <div class="out-txt"><b>Áudio WAV</b><span>O beat já tocado (44,1 kHz, 24 bits), com a duração exata do loop: começa no tempo 1 e dá a volta sem costura no DAW. Stems: cada parte em separado, todas alinhadas.</span></div>
                 <div class="out-btns">
                   <button id="btnWav" class="btn small" disabled>Mistura</button>
                   <button id="btnStems" class="btn small ghost" disabled>Stems</button>
@@ -347,6 +351,34 @@
     </form>
   </dialog>
 
+  <dialog id="libDlg" aria-labelledby="libTitle">
+    <form method="dialog" class="dlg lib">
+      <header>
+        <h3 id="libTitle">Biblioteca de sons</h3>
+        <button class="icon-btn" value="close" aria-label="Fechar"><svg><use href="#i-x"/></svg></button>
+      </header>
+      <div class="lib-drop" id="libDrop">
+        <p><b>Arrasta para aqui samples ou uma pasta inteira</b> (WAV, MP3, AIFF, OGG, FLAC). Pelo nome (kick, snare, hat, clap, 808…) cada som vai logo para o sítio certo.</p>
+        <div class="lib-btns">
+          <button type="button" class="btn small" id="btnLibFiles">Escolher ficheiros</button>
+          <button type="button" class="btn small ghost" id="btnLibFolder">Escolher pasta</button>
+        </div>
+        <p class="hint" id="libState"></p>
+      </div>
+      <div id="libRows"></div>
+      <details class="lib-all" id="libAll">
+        <summary>Todos os samples (<span id="libCount">0</span>)</summary>
+        <div id="libItems"></div>
+      </details>
+      <footer>
+        <button type="button" class="btn small ghost" id="btnLibClear">Apagar a biblioteca</button>
+        <button class="btn small primary" value="close">Feito</button>
+      </footer>
+    </form>
+  </dialog>
+  <input type="file" id="libIn" accept="audio/*,.wav,.aif,.aiff,.mp3,.m4a,.ogg,.flac" multiple hidden />
+  <input type="file" id="libDirIn" webkitdirectory multiple hidden />
+
   <dialog id="calDlg">
     <form method="dialog" class="dlg">
       <header>
@@ -368,10 +400,10 @@
   <script src="js/voicefx.js"></script>
   <script src="js/midi.js"></script>
   <script src="js/mixer.js"></script>
+  <script src="js/sounds.js"></script>
   <script src="js/audio.js"></script>
   <script src="js/zip.js"></script>
   <script src="js/knob.js"></script>
-  <script src="js/scene.js"></script>
   <script src="js/eq3d.js"></script>
   <script src="js/stage3d.js"></script>
   <script src="js/flow.js"></script>

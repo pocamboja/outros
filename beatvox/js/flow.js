@@ -1,17 +1,16 @@
-/* BeatVox — fluxo em passos guiado pelo scroll.
+/* BeatVox — passos guiados pelo scroll.
    O documento tem uma "pista" invisível com uma altura de ecrã por passo e
-   encaixe (scroll-snap) em cada um. Os passos são camadas fixas: a posição do
-   scroll (p = 0..N-1) controla em contínuo a transição entre elas, e a cena 3D
-   muda de forma ao mesmo ritmo. */
+   encaixe (scroll-snap) em cada um. Os passos são camadas fixas que se movem
+   exatamente com o scroll, como uma página: ao descer, o passo atual sobe e o
+   seguinte entra por baixo. Sem zoom, rotação nem desfocagem. */
 (function () {
   const BV = (window.BV = window.BV || {});
   const steps = [...document.querySelectorAll('.step')];
   const N = steps.length;
   const track = document.getElementById('track');
-  const railFill = document.getElementById('railFill');
-  const railBtns = [...document.querySelectorAll('.rail [data-go]')];
+  const NOMES = steps.map((s) => s.getAttribute('aria-label') || '');
+  const pgLabel = document.getElementById('pgLabel'), pgPrev = document.getElementById('pgPrev'), pgNext = document.getElementById('pgNext');
   const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const depthEls = steps.map((s) => [...s.querySelectorAll('[data-depth]')].map((el) => ({ el, d: +el.dataset.depth })));
 
   const flow = { p: 0, active: -1, onStep: null, locked: false };
   BV.flow = flow;
@@ -29,48 +28,33 @@
     render();
   }
 
-  const ease = (x) => x * x * (3 - 2 * x);
-
   function render() {
     const p = Math.max(0, Math.min(N - 1, scrollY / vh));
     flow.p = p;
-    if (BV.scene) BV.scene.progress = p;
-    if (BV.eq) BV.eq.visible = Math.max(0, 1 - Math.abs(p - 2) * 1.6);
+    if (BV.eq) BV.eq.visible = 0; // o equalizador só aparece a gravar (mostra o que o micro ouve)
     if (BV.stage3d) BV.stage3d.vis = Math.max(0, 1 - Math.abs(p - 4) * 1.4);
     steps.forEach((s, i) => {
-      const t = p - i;            // 0 = no ecrã, >0 a sair (para cima/para nós), <0 a entrar (da profundidade)
+      const t = p - i;            // 0 = no ecrã; >0 já passou (está acima); <0 ainda vem (está abaixo)
       const a = Math.abs(t);
       if (a >= 1) {
         if (!s.hidden) { s.hidden = true; s.setAttribute('aria-hidden', 'true'); }
         return;
       }
-      if (s.hidden) { s.hidden = false; }
+      if (s.hidden) s.hidden = false;
       s.toggleAttribute('inert', a > 0.5);
       s.setAttribute('aria-hidden', a > 0.5 ? 'true' : 'false');
-      const k = ease(Math.min(1, a * 1.25));
-      const op = 1 - k;
-      if (reduce) {
-        s.style.opacity = op;
-        s.style.transform = 'none';
-        s.style.filter = 'none';
-      } else {
-        // a sair: aproxima-se da câmara e sobe; a entrar: vem de trás, mais pequeno, desfocado
-        const scale = t > 0 ? 1 + 0.22 * k : 1 - 0.14 * k;
-        const ty = -t * 9;        // vh
-        const rx = t * 7;         // graus
-        s.style.opacity = op.toFixed(3);
-        s.style.transform = `translate3d(0, ${ty.toFixed(2)}vh, 0) rotateX(${rx.toFixed(2)}deg) scale(${scale.toFixed(4)})`;
-        s.style.filter = a > 0.02 ? `blur(${(k * 14).toFixed(1)}px)` : 'none';
-        // parallax: cada camada interior desloca-se a uma velocidade diferente
-        for (const { el, d } of depthEls[i]) el.style.transform = a > 0.001 ? `translate3d(0, ${(-t * d * 16).toFixed(2)}vh, 0)` : '';
-      }
+      // segue o scroll: o passo desloca-se o mesmo que o dedo; o que sai perde um pouco de destaque
+      // parado (a ≈ 0) não leva estilos: opacidade < 1 impediria o vidro fosco de desfocar o fundo
+      s.style.transform = a < 1e-3 ? '' : `translate3d(0, ${(-t * 100).toFixed(3)}vh, 0)`;
+      s.style.opacity = a < 1e-3 ? '' : reduce ? (a < 0.5 ? 1 : 0) : (1 - 0.45 * a).toFixed(3);
     });
-    railFill.style.transform = `scaleY(${(p / (N - 1)).toFixed(4)})`;
     const act = Math.round(p);
     if (act !== flow.active) {
       flow.active = act;
       document.body.dataset.step = act;
-      railBtns.forEach((b) => b.setAttribute('aria-current', +b.dataset.go === act ? 'step' : 'false'));
+      if (pgLabel) pgLabel.innerHTML = `<b>${act + 1}</b> / ${N} · ${NOMES[act]}`;
+      if (pgPrev) pgPrev.disabled = act === 0;
+      if (pgNext) pgNext.disabled = act === N - 1;
       if (flow.onStep) flow.onStep(act);
     }
   }
@@ -86,6 +70,7 @@
   });
 
   flow.go = (i) => {
+    if (flow.locked) return;
     i = Math.max(0, Math.min(N - 1, i));
     scrollTo({ top: i * vh, behavior: reduce ? 'auto' : 'smooth' });
   };
@@ -99,6 +84,8 @@
     e.preventDefault();
     flow.go(+b.dataset.go);
   });
+  if (pgPrev) pgPrev.addEventListener('click', () => flow.go(flow.active - 1));
+  if (pgNext) pgNext.addEventListener('click', () => flow.go(flow.active + 1));
 
   size();
 })();

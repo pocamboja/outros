@@ -243,6 +243,9 @@ window.Studio = {
     const loopBeats = playing && e.playLoopDur ? Math.round(e.playLoopDur / (stepDur * spb)) : st.bars * 4;
     return { playing, t0: e.playT0 || 0, stepDur, stepsPerBeat: spb, loopBeats, bars: loopBeats / 4, bpm: st.bpm, recording: rec };
   },
+  // o Deriva pode pôr o beat a tocar (ex.: "▶ tocar" num padrão de acordes)
+  play() { const app = bvApp(); if (app && !app.engine.playing) togglePlay(); },
+  stop() { const app = bvApp(); if (app && app.engine.playing) togglePlay(); },
 };
 
 // audio-context time that was audible at a given hub performance.now() moment

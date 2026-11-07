@@ -2,8 +2,8 @@
 
 Uma app web instalável (PWA) que junta as duas apps no mesmo relógio de áudio, pensada para o **Galaxy Tab S9 com um teclado Arturia por USB-C**. Funciona também em qualquer PC com Chrome ou Edge.
 
-- **BeatVox**: beatbox → bateria, melodia → piano roll, mistura 3D e exportação (igual ao ramo `main`).
-- **Deriva**: o sintetizador de acordes em que cada voz desliza para a nota mais próxima do acorde seguinte.
+- **BeatVox**: beatbox → bateria, melodia → piano roll, mistura 3D com efeitos que acrescentas, kits de bateria e biblioteca com os teus samples, e exportação (WAV com a duração exata do loop, stems alinhados, MIDI). É a versão do ramo `branch2`.
+- **Deriva**: o sintetizador de acordes em que cada voz desliza para a nota mais próxima do acorde seguinte, com 8 tipos de oscilador, acordes à tua escolha nos pads e padrões feitos com eles.
 
 ## Instalar no tablet
 1. No Chrome do tablet abre **https://pocamboja.github.io/outros/**
@@ -32,6 +32,39 @@ Uma app web instalável (PWA) que junta as duas apps no mesmo relógio de áudio
 
 O tempo das notas é medido pelo som que estava a sair das colunas no momento em que tocaste, por isso a latência do tablet já está compensada.
 
+## BeatVox
+- Avanças com o scroll (ou deslizando no tablet): o passo sobe e o seguinte entra por baixo, como numa página. Em baixo à direita vês em que passo estás (**3 / 6 · Bateria**) e tens anterior / seguinte.
+- Dentro do Estúdio, a barra de topo do hub faz de transporte (tocar, clique, BPM); o BeatVox não repete a sua.
+- O equalizador de LEDs só aparece a gravar (mostra o que o microfone ouve). O palco da mistura não roda sozinho (liga *Rodar* se quiseres).
+
+## Deriva
+### Osciladores
+Em **oscillator → type** escolhes o tipo; o knob **timbre** muda o carácter de cada um (o **wave** só serve ao *morph*):
+
+| tipo | som | timbre |
+|---|---|---|
+| **morph** | seno → triângulo → serra → quadrada (o original) | — (usa *wave*) |
+| **pulse** | onda de pulso, PWM | largura (50 % → 5 %) |
+| **super** | 7 serras desafinadas (supersaw) | abertura |
+| **fm** | FM 1:1, piano elétrico e teclas | brilho (segue o *mod env*) |
+| **bell** | FM 1:3,5, sinos e mallets | brilho (segue o *mod env*) |
+| **sync** | serra com hard sync, leads | altura da serra escrava |
+| **fold** | seno dobrado (wavefolder) | quanto dobra |
+| **organ** | órgão de registos | registos agudos |
+
+Os presets estão agrupados em *pads*, *teclas*, *leads* e *baixos* (16 no total).
+
+### Acordes dos pads
+**editar acordes** → toca num pad e escolhe **tónica**, **tipo** (maior, menor, 7, maj7, m7, sus, 6, add9, 9, m9, 11, 13, dim, aug, power…), **inversão**, **voicing** (fechado, drop 2, aberto, largo) e **oitava**. Ouves o acorde a cada mudança.
+**Preencher pelo tom**: escolhe o tom, maior/menor e tríades/sétimas, e os 8 pads ficam com os acordes desse tom (I a vii e um acorde de cor), com inversões escolhidas para as vozes andarem pouco. *Repor os de origem* volta aos pads iniciais. Tudo fica guardado no tablet.
+
+### Padrões
+Quatro padrões (**A–D**). Em cada um escolhes **compassos** (1, 2, 4), **acordes por compasso** (1, 2, 4, 8) e o **ritmo**: sustentado, stabs, arpejo ↑ / ↓ / ↕ ou strum, com as **notas do ritmo** a 1/4, 1/8 ou 1/16.
+- Escolhe em **pôr nas casas** um acorde (ou *continuar* / *pausa*) e clica nas casas. Clicar outra vez com o mesmo acorde apaga a casa.
+- **▶ tocar**: no Estúdio toca com o beat do BeatVox (e põe-no a tocar); sozinho usa o **bpm** do padrão. A casa que está a tocar fica sublinhada.
+- **encadear A→D** toca os padrões que têm acordes, um a seguir ao outro.
+- **MIDI ↓** exporta o padrão (ou a cadeia) com o ritmo, para o Ableton ou o FL Studio.
+
 ## Barra de topo
 **Tocar/Parar** · **REC** · **clique** (metrónomo) · posição (compasso.tempo) · **BPM** − / + (mantém carregado para mudar depressa) · estado do MIDI (pisca a cada mensagem) · ⚙ definições.
 
@@ -40,7 +73,7 @@ O tempo das notas é medido pelo som que estava a sair das colunas no momento em
 index.html            o estúdio (barra de topo, encaminhamento MIDI, relógio partilhado)
 sw.js                 guarda tudo no tablet para funcionar offline
 manifest.webmanifest  nome, ícone e ecrã inteiro da app instalada
-beatvox/              o BeatVox (codigo-fonte do main + 2 ganchos pequenos)
+beatvox/              o BeatVox (codigo-fonte da branch2 + 2 ganchos pequenos)
 deriva/               o Deriva web (engine.js = motor de som em AudioWorklet)
 ```
 Os dois ganchos no BeatVox: `js/app.js` exporta `togglePlay`/`restartIfPlaying`, e `js/audio.js` não repete uma pancada de pad que acabou de soar ao vivo.

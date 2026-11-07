@@ -37,6 +37,36 @@
     if (c.createConstantSource) { bend = c.createConstantSource(); bend.offset.value = 0; bend.start(); }
     return { input, bend, p: { wet: wet.gain, dry: dry.gain, wahF: wah.frequency, wahG: wah.gain, lpF: lp.frequency, level: level.gain, send: send.gain, bend: bend && bend.offset } };
   }
+  // ---------- master: compressor ----------
+  // O DynamicsCompressor do browser arranca "fechado" (redução máxima) e só abre ao ritmo do release:
+  // sem isto, o primeiro tempo de cada WAV (e da primeira vez que tocas) sai abafado.
+  function makeComp(c, t = 0) {
+    const k = c.createDynamicsCompressor();
+    k.threshold.value = -10; k.ratio.value = 4;
+    k.release.setValueAtTime(0.001, t);
+    k.release.setValueAtTime(0.25, t + 0.05);
+    return k;
+  }
+  // o compressor atrasa o som (look-ahead de ~6 ms): mede-se uma vez para o WAV começar no tempo 1
+  let compLat = null;
+  function compLatency() {
+    if (!compLat) compLat = (async () => {
+      try {
+        const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext, sr = 44100, at = 1024;
+        const c = new OAC(1, 4096, sr), k = makeComp(c);
+        k.connect(c.destination);
+        const b = c.createBuffer(1, 1, sr); b.getChannelData(0)[0] = 0.5;
+        const s = c.createBufferSource(); s.buffer = b; s.connect(k); s.start(at / sr);
+        const x = (await c.startRendering()).getChannelData(0);
+        let mi = 0;
+        for (let i = 0; i < x.length; i++) if (Math.abs(x[i]) > Math.abs(x[mi])) mi = i;
+        const d = (mi - at) / sr;
+        return d >= 0 && d < 0.05 ? d : 0.006;
+      } catch (e) { return 0.006; }
+    })();
+    return compLat;
+  }
+
   const NEUTRAL = { wet: 0, dry: 1, wahF: 1000, wahG: 0, lpF: 20000, level: 1, send: 0, bend: 0 };
   function resetLeadBus(bus, t) {
     for (const k in bus.p) if (bus.p[k]) { bus.p[k].cancelScheduledValues(0); bus.p[k].setValueAtTime(NEUTRAL[k], t); }
@@ -81,9 +111,7 @@
         for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
         this.master = this.ctx.createGain();
         this.master.gain.value = 0.9;
-        const comp = this.ctx.createDynamicsCompressor();
-        comp.threshold.value = -10;
-        comp.ratio.value = 4;
+        const comp = makeComp(this.ctx, this.ctx.currentTime);
         this.master.connect(comp).connect(this.ctx.destination);
         // analisadores para a cena reagir ao som (saída e microfone)
         this.outAn = this.ctx.createAnalyser(); this.outAn.fftSize = 512;
@@ -156,6 +184,12 @@
     /** 808: seno grave com "punch" de altura no ataque, decaimento longo e saturação no canal */
     playBass(pitch, t, dur, vel = 100) {
       const c = this.ctx, P = this.mixP('bass');
+      const smp = this.sounds && this.sounds.bass;
+      if (smp && smp.buf && BV.sounds) { // o teu 808: afinado para a nota, cortado no fim (com o decaimento do canal)
+        const end = t + Math.max(0.12, dur) * Math.min(1.5, (P.decay || 0.8) / 0.8);
+        BV.sounds.playSample(c, smp.buf, t, this.stripIn('bass'), { rate: Math.pow(2, (pitch + (P.tune || 0) - smp.root) / 12), gain: 0.85 * Math.max(0.1, vel / 127), end, release: 0.05 });
+        return;
+      }
       const f = 440 * Math.pow(2, (pitch + (P.tune || 0) - 69) / 12);
       const v = 0.75 * Math.max(0.1, vel / 127), dk = P.decay || 0.8;
       const o = c.createOscillator(), gn = c.createGain();
@@ -173,54 +207,13 @@
 
     playDrum(id, t, vel = 100) {
       const c = this.ctx;
-      const v = Math.max(0.05, vel / 127);
-      const P = this.mixP(id), tn = P.tune || 0, dk = P.decay || 1, tone = P.tone || 1;
       const out = c.createGain();
-      out.gain.value = v;
+      out.gain.value = Math.max(0.05, vel / 127);
       out.connect(this.stripIn(id));
-      if (id === 'kick') {
-        const o = c.createOscillator(), gn = c.createGain();
-        const kt = Math.pow(2, tn / 12);
-        o.frequency.setValueAtTime(160 * kt, t);
-        o.frequency.exponentialRampToValueAtTime(48 * kt, t + 0.12);
-        gn.gain.setValueAtTime(1, t);
-        gn.gain.exponentialRampToValueAtTime(0.001, t + 0.45 * dk);
-        o.connect(gn).connect(out);
-        o.start(t); o.stop(t + 0.5 * dk + 0.02);
-        // clique de ataque
-        const n = this.noiseSrc(t, 0.01), ng = c.createGain(), lp = c.createBiquadFilter();
-        lp.type = 'lowpass'; lp.frequency.value = 3000;
-        ng.gain.setValueAtTime(0.3, t); ng.gain.exponentialRampToValueAtTime(0.001, t + 0.01);
-        n.connect(lp).connect(ng).connect(out);
-      } else if (id === 'snare') {
-        const n = this.noiseSrc(t, 0.25 * dk + 0.05), ng = c.createGain(), hp = c.createBiquadFilter();
-        hp.type = 'highpass'; hp.frequency.value = 1200 * tone;
-        ng.gain.setValueAtTime(0.7, t); ng.gain.exponentialRampToValueAtTime(0.001, t + 0.2 * dk);
-        n.connect(hp).connect(ng).connect(out);
-        const o = c.createOscillator(), og = c.createGain();
-        o.type = 'triangle'; o.frequency.setValueAtTime(220 * tone, t); o.frequency.exponentialRampToValueAtTime(160 * tone, t + 0.08);
-        og.gain.setValueAtTime(0.6, t); og.gain.exponentialRampToValueAtTime(0.001, t + 0.1 * dk);
-        o.connect(og).connect(out); o.start(t); o.stop(t + 0.1 * dk + 0.02);
-      } else if (id === 'clap') {
-        const bp = c.createBiquadFilter(), ng = c.createGain();
-        bp.type = 'bandpass'; bp.frequency.value = 1400 * tone; bp.Q.value = 0.8;
-        bp.connect(ng).connect(out);
-        ng.gain.setValueAtTime(0.0001, t);
-        [0, 0.012, 0.024].forEach((d) => {
-          ng.gain.setValueAtTime(0.9, t + d);
-          ng.gain.exponentialRampToValueAtTime(0.1, t + d + 0.01);
-        });
-        ng.gain.setValueAtTime(0.6, t + 0.034);
-        ng.gain.exponentialRampToValueAtTime(0.001, t + 0.034 + 0.19 * dk);
-        this.noiseSrc(t, 0.06 + 0.2 * dk).connect(bp);
-      } else if (id === 'hat' || id === 'openhat') {
-        const dur = (id === 'hat' ? 0.05 : 0.32) * dk;
-        const n = this.noiseSrc(t, dur + 0.02), hp = c.createBiquadFilter(), ng = c.createGain();
-        hp.type = 'highpass'; hp.frequency.value = Math.min(16000, 7000 * tone);
-        ng.gain.setValueAtTime(0.45, t); ng.gain.exponentialRampToValueAtTime(0.001, t + dur);
-        n.connect(hp).connect(ng).connect(out);
-      }
+      BV.sounds.drum(this, this.sounds || { kit: 'beatvox' }, id, t, out, this.mixP(id));
     }
+    /** sons em uso: { kit, drums: {id: AudioBuffer}, bass: {buf, root}, lead: {buf, root} } */
+    setSounds(s) { this.sounds = s; }
 
     // ---------- Gravação ----------
     /**
@@ -401,50 +394,11 @@
     // ---------- Sintetizador de lead ----------
     playLead(pitch, t, dur, vel = 100, preset = 'synth') {
       const c = this.ctx;
-      const f = 440 * Math.pow(2, (pitch - 69) / 12);
-      const v = (0.12 + 0.18 * (vel / 127));
       const out = c.createGain();
       out.connect(this.leadBus ? this.leadBus.input : this.master);
-      const bend = (o) => { if (this.leadBus && this.leadBus.bend) this.leadBus.bend.connect(o.detune); return o; };
-      const end = t + Math.max(0.05, dur);
-      if (preset === 'pluck') {
-        const o = bend(c.createOscillator()), lp = c.createBiquadFilter();
-        o.type = 'square'; o.frequency.value = f;
-        lp.type = 'lowpass'; lp.Q.value = 2;
-        lp.frequency.setValueAtTime(Math.min(12000, f * 14), t);
-        lp.frequency.exponentialRampToValueAtTime(Math.max(200, f * 1.5), t + 0.25);
-        const stopAt = Math.min(end + 0.1, t + 0.9);
-        out.gain.setValueAtTime(0.0001, t);
-        out.gain.exponentialRampToValueAtTime(v * 1.1, t + 0.004);
-        out.gain.exponentialRampToValueAtTime(0.0001, stopAt);
-        o.connect(lp).connect(out); o.start(t); o.stop(stopAt + 0.02);
-      } else if (preset === 'sine') {
-        const o = bend(c.createOscillator()), o2 = bend(c.createOscillator()), g2 = c.createGain();
-        o.type = 'sine'; o.frequency.value = f;
-        o2.type = 'triangle'; o2.frequency.value = f * 2; g2.gain.value = 0.15;
-        out.gain.setValueAtTime(0.0001, t);
-        out.gain.exponentialRampToValueAtTime(v * 1.3, t + 0.012);
-        out.gain.setValueAtTime(v * 1.3, end);
-        out.gain.exponentialRampToValueAtTime(0.0001, end + 0.12);
-        o.connect(out); o2.connect(g2).connect(out);
-        o.start(t); o2.start(t); o.stop(end + 0.15); o2.stop(end + 0.15);
-      } else {
-        const lp = c.createBiquadFilter();
-        lp.type = 'lowpass'; lp.Q.value = 4;
-        lp.frequency.setValueAtTime(f * 2, t);
-        lp.frequency.exponentialRampToValueAtTime(Math.min(9000, f * 9), t + 0.03);
-        lp.frequency.exponentialRampToValueAtTime(Math.min(5000, f * 4), t + 0.3);
-        out.gain.setValueAtTime(0.0001, t);
-        out.gain.exponentialRampToValueAtTime(v, t + 0.006);
-        out.gain.setValueAtTime(v * 0.8, end);
-        out.gain.exponentialRampToValueAtTime(0.0001, end + 0.09);
-        lp.connect(out);
-        [-7, 7].forEach((cents) => {
-          const o = bend(c.createOscillator());
-          o.type = 'sawtooth'; o.frequency.value = f; o.detune.value = cents;
-          o.connect(lp); o.start(t); o.stop(end + 0.12);
-        });
-      }
+      const bendSrc = this.leadBus && this.leadBus.bend;
+      const bend = (o) => { if (bendSrc) bendSrc.connect(o.detune); return o; };
+      BV.sounds.lead(c, { pitch, t, dur, vel, preset, out, bend, bendSrc, noise: this.noise, sample: this.sounds && this.sounds.lead });
     }
 
     /** Calibração: o utilizador bate palmas em cada tempo durante 2 compassos. Devolve latência (s). */
@@ -477,6 +431,7 @@
       const stepDur = 60 / bpm / stepsPerBeat;
       const loopDur = stepDur * totalSteps;
       const t0 = c.currentTime + 0.12;
+      if (this.mixer) this.mixer.sync(t0); // LFOs (filtro, tremolo) alinhados com o compasso
       this.playT0 = t0;
       this.playLoopDur = loopDur;
       this.playStepDur = stepDur;
@@ -509,6 +464,7 @@
           }
           // metrónomo: um clique por tempo, com acento no primeiro tempo de cada compasso
           if (click() && step % stepsPerBeat === 0) this.click(t, step % (stepsPerBeat * 4) === 0, 0.75);
+          // skipAt: uma pancada de pad que acabou de soar ao vivo (Estúdio) não se repete nesta passagem
           for (const n of drums()) if (n.step === step && n.skipAt !== next) this.playDrum(n.drum, t, n.vel);
           for (const n of lead()) if (n.step === step) this.playLead(n.pitch, t, n.len * stepDur, n.vel, leadPreset);
           for (const n of bass()) if (n.step === step) this.playBass(n.pitch, t, n.len * stepDur, n.vel);
@@ -528,57 +484,72 @@
 
     /**
      * Renderiza o loop para um ficheiro de áudio, sem tocar nada (OfflineAudioContext), com os mesmos sons da reprodução.
-     * o = { bpm, stepsPerBeat, totalSteps, drums, lead, leadPreset, loops }
+     * o = { bpm, stepsPerBeat, totalSteps, drums, lead, bass, voices, leadPreset, leadFx, mix, loops,
+     *       master (false = sem o compressor do master, para os stems), raw (sem normalizar),
+     *       preroll (false = sem pré-rolo nem corte: só para medir o espetro) }
+     *
+     * O ficheiro tem a duração exata de N loops e começa no tempo 1 (amostra 0):
+     * - o loop toca uma ou mais vezes ANTES do início do ficheiro (pré-rolo), por isso o compressor do master
+     *   já está estável no primeiro tempo e as caudas do fim (reverb, delay, notas longas) entram no início,
+     *   como quando tocas em loop: o ficheiro dá a volta sem costura num DAW ou num leitor;
+     * - o atraso do compressor (look-ahead) é compensado no corte.
      */
     async render(o) {
       const sr = 44100, stepDur = 60 / o.bpm / o.stepsPerBeat, loops = o.loops || 1;
-      const loopDur = stepDur * o.totalSteps, tail = 1.2;
+      const loopDur = stepDur * o.totalSteps;
+      const useMaster = o.master !== false, cut = o.preroll !== false;
+      const lat = useMaster ? await compLatency() : 0;
+      const pre = cut ? Math.max(1, Math.ceil(2.5 / loopDur)) : 0;
+      const total = pre + loops;
       const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
-      const c = new OAC(2, Math.ceil((loopDur * loops + tail) * sr), sr);
+      const c = new OAC(2, Math.ceil((total * loopDur + lat + (cut ? 0.05 : 1.2)) * sr), sr);
       // um "motor" temporário que usa os mesmos sintetizadores, ligado ao contexto offline
       const r = Object.create(Engine.prototype);
       r.ctx = c;
       r.noise = c.createBuffer(1, sr, sr);
       const d = r.noise.getChannelData(0);
       for (let i = 0; i < sr; i++) d[i] = Math.random() * 2 - 1;
+      r.sounds = o.sounds || this.sounds || null;
       r.master = c.createGain();
       r.master.gain.value = 0.9;
-      const comp = c.createDynamicsCompressor();
-      comp.threshold.value = -10; comp.ratio.value = 4;
-      r.master.connect(comp).connect(c.destination);
+      if (useMaster) r.master.connect(makeComp(c, 0)).connect(c.destination);
+      else r.master.connect(c.destination);
       if (BV.mix && o.mix) {
         r.mixer = BV.mix.build(c, r.master);
         r.mixState = o.mix;
         r.mixer.apply(o.mix, o.bpm, o.stepsPerBeat, 0, 0);
+        r.mixer.sync(0);
       }
       r.leadBus = makeLeadBus(c, r.mixer ? r.mixer.strips.lead.input : r.master);
-      const t0 = 0.005;
-      for (let k = 0; k < loops; k++) {
-        const base = t0 + k * loopDur;
+      const voiceBufs = (o.voices || []).map((v) => {
+        const b = c.createBuffer(1, v.rec.samples.length, v.rec.sr);
+        b.copyToChannel(v.rec.samples, 0);
+        return b;
+      });
+      for (let k = 0; k < total; k++) {
+        const base = k * loopDur + (cut ? 0 : 0.005);
         scheduleLeadBus(r.leadBus, o.leadFx || null, base, stepDur);
         for (const n of o.drums || []) r.playDrum(n.drum, base + n.step * stepDur, n.vel);
         for (const n of o.lead || []) r.playLead(n.pitch, base + n.step * stepDur, n.len * stepDur, n.vel, o.leadPreset);
         for (const n of o.bass || []) r.playBass(n.pitch, base + n.step * stepDur, n.len * stepDur, n.vel);
-        for (const v of o.voices || []) {
-          const b = c.createBuffer(1, v.rec.samples.length, v.rec.sr);
-          b.copyToChannel(v.rec.samples, 0);
-          const src = c.createBufferSource(); src.buffer = b;
+        (o.voices || []).forEach((v, i) => {
+          const src = c.createBufferSource(); src.buffer = voiceBufs[i];
           src.connect(r.stripIn(v.kind)); src.start(base, Math.max(0, v.offset), loopDur);
-        }
+        });
       }
       const buf = await c.startRendering();
-      // corta a cauda silenciosa e faz um fade-out curto no fim
-      const L = buf.getChannelData(0), R = buf.getChannelData(1);
+      let L = buf.getChannelData(0), R = buf.getChannelData(1);
+      if (cut) {
+        const s0 = Math.round((pre * loopDur + lat) * sr), n = Math.round(loops * loopDur * sr);
+        L = L.slice(s0, s0 + n); R = R.slice(s0, s0 + n);
+      }
       // sem clipping: se passar de -1 dBFS, baixa o ganho de tudo por igual
-      let pk = 0;
-      for (let i = 0; i < L.length; i++) pk = Math.max(pk, Math.abs(L[i]), Math.abs(R[i]));
-      if (pk > 0.89 && !o.raw) { const g = 0.89 / pk; for (let i = 0; i < L.length; i++) { L[i] *= g; R[i] *= g; } }
-      let end = L.length;
-      const minEnd = Math.ceil((loopDur * loops + 0.05) * sr);
-      while (end > minEnd && Math.abs(L[end - 1]) < 1e-4 && Math.abs(R[end - 1]) < 1e-4) end--;
-      const fade = Math.min(end, Math.round(0.02 * sr));
-      for (let i = 0; i < fade; i++) { const g = i / fade; L[end - 1 - i] *= g; R[end - 1 - i] *= g; }
-      return { channels: [L.subarray(0, end), R.subarray(0, end)], sr };
+      if (!o.raw) {
+        let pk = 0;
+        for (let i = 0; i < L.length; i++) pk = Math.max(pk, Math.abs(L[i]), Math.abs(R[i]));
+        if (pk > 0.89) { const g = 0.89 / pk; for (let i = 0; i < L.length; i++) { L[i] *= g; R[i] *= g; } }
+      }
+      return { channels: [L, R], sr, bpm: o.bpm, beats: Math.round(loops * o.totalSteps / o.stepsPerBeat) };
     }
 
     stop() {
@@ -602,20 +573,60 @@
   BV.normalizeAudio = normalize;
   BV.Engine = Engine;
 
-  /** WAV PCM 16 bits a partir de canais Float32 → Uint8Array */
-  BV.encodeWav = function ({ channels, sr }) {
-    const nc = channels.length, n = channels[0].length, bytes = 44 + n * nc * 2;
-    const b = new ArrayBuffer(bytes), v = new DataView(b);
+  /**
+   * WAV PCM (24 bits por omissão) a partir de canais Float32 → Uint8Array.
+   * Com bpm e beats junta um chunk "acid" (andamento, n.º de tempos, 4/4): o FL Studio e outros DAWs
+   * ficam a saber o andamento do loop. name vai para os metadados (INFO).
+   */
+  BV.encodeWav = function ({ channels, sr, bpm, beats, name, bits = 24 }) {
+    const nc = channels.length, n = channels[0].length, bps = bits === 16 ? 2 : 3, dataLen = n * nc * bps;
+    const ascii = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\x20-\x7e]/g, '');
+    // chunks extra (depois dos dados, onde todos os leitores os aceitam)
+    const extra = [];
+    if (bpm && beats) {
+      const a = new DataView(new ArrayBuffer(24));
+      a.setUint32(0, 0x04, true);          // loop (não one-shot), com stretch
+      a.setUint16(4, 60, true); a.setUint16(6, 0x8000, true); a.setFloat32(8, 0, true);
+      a.setUint32(12, beats, true);
+      a.setUint16(16, 4, true); a.setUint16(18, 4, true); // 4/4
+      a.setFloat32(20, bpm, true);
+      extra.push(['acid', new Uint8Array(a.buffer)]);
+    }
+    const info = [['INAM', ascii(name)], ['ISFT', 'BeatVox']].filter(([, s]) => s);
+    if (info.length) {
+      const parts = info.map(([id, s]) => { const t = s + '\0', len = t.length + (t.length & 1), u = new Uint8Array(8 + len); for (let i = 0; i < 4; i++) u[i] = id.charCodeAt(i); new DataView(u.buffer).setUint32(4, t.length, true); for (let i = 0; i < t.length; i++) u[8 + i] = t.charCodeAt(i); return u; });
+      const body = new Uint8Array(4 + parts.reduce((s, p) => s + p.length, 0));
+      body.set([73, 78, 70, 79]); // INFO
+      let o = 4; for (const p of parts) { body.set(p, o); o += p.length; }
+      extra.push(['LIST', body]);
+    }
+    const extraLen = extra.reduce((s, [, d]) => s + 8 + d.length + (d.length & 1), 0);
+    const bytes = 44 + dataLen + (dataLen & 1) + extraLen;
+    const b = new ArrayBuffer(bytes), v = new DataView(b), u8 = new Uint8Array(b);
     const str = (o, t) => { for (let i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); };
     str(0, 'RIFF'); v.setUint32(4, bytes - 8, true); str(8, 'WAVE'); str(12, 'fmt ');
     v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, nc, true); v.setUint32(24, sr, true);
-    v.setUint32(28, sr * nc * 2, true); v.setUint16(32, nc * 2, true); v.setUint16(34, 16, true);
-    str(36, 'data'); v.setUint32(40, n * nc * 2, true);
+    v.setUint32(28, sr * nc * bps, true); v.setUint16(32, nc * bps, true); v.setUint16(34, bps * 8, true);
+    str(36, 'data'); v.setUint32(40, dataLen, true);
     let o = 44;
-    for (let i = 0; i < n; i++) for (let ch = 0; ch < nc; ch++) {
-      const x = Math.max(-1, Math.min(1, channels[ch][i]));
-      v.setInt16(o, x < 0 ? x * 0x8000 : x * 0x7fff, true); o += 2;
+    if (bps === 2) {
+      for (let i = 0; i < n; i++) for (let ch = 0; ch < nc; ch++) {
+        const x = Math.max(-1, Math.min(1, channels[ch][i]));
+        v.setInt16(o, Math.round(x < 0 ? x * 0x8000 : x * 0x7fff), true); o += 2;
+      }
+    } else {
+      for (let i = 0; i < n; i++) for (let ch = 0; ch < nc; ch++) {
+        const x = channels[ch][i];
+        let q = Math.round((x < 0 ? x * 8388608 : x * 8388607) || 0);
+        if (q > 8388607) q = 8388607; else if (q < -8388608) q = -8388608;
+        u8[o] = q & 255; u8[o + 1] = (q >> 8) & 255; u8[o + 2] = (q >> 16) & 255; o += 3;
+      }
     }
-    return new Uint8Array(b);
+    o += dataLen & 1;
+    for (const [id, d] of extra) {
+      str(o, id); v.setUint32(o + 4, d.length, true); u8.set(d, o + 8);
+      o += 8 + d.length + (d.length & 1);
+    }
+    return u8;
   };
 })(typeof window !== 'undefined' ? window : globalThis);

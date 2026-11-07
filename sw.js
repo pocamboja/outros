@@ -1,5 +1,5 @@
 /* Estúdio service worker: keeps the whole app on the device so it opens without internet. */
-const VERSION = "estudio-20261107-4a5913f2";
+const VERSION = "estudio-20261107-sons-acordes";
 const PRECACHE = [
 "./",
 "beatvox/css/fonts.css",
@@ -15,7 +15,7 @@ const PRECACHE = [
 "beatvox/js/midi.js",
 "beatvox/js/mixer.js",
 "beatvox/js/pitch.js",
-"beatvox/js/scene.js",
+"beatvox/js/sounds.js",
 "beatvox/js/stage3d.js",
 "beatvox/js/voicefx.js",
 "beatvox/js/zip.js",

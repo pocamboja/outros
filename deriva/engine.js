@@ -42,6 +42,26 @@ function derivaPolyBlep(t, dt) {
   return 0;
 }
 function derivaTri(ph) { let q = ph + 0.25; if (q >= 1) q -= 1; return 1 - 4 * Math.abs(q - 0.5); }
+function derivaSaw(ph, dt) { return 2 * ph - 1 - derivaPolyBlep(ph, dt); }
+// pulse of width w (0..1), band-limited, without DC
+function derivaPulse(ph, dt, w) {
+  let v = ph < w ? 1 : -1;
+  v += derivaPolyBlep(ph, dt);
+  let h = ph - w; if (h < 0) h += 1;
+  v -= derivaPolyBlep(h, dt);
+  return v - (2 * w - 1);
+}
+// oscillator types (p.osc): what "timbre" does in each one
+//   0 morph   sine > tri > saw > square (the "wave" knob)      timbre: —
+//   1 pulse   pulse wave                                         timbre: width (50% → 5%)
+//   2 super   7 detuned saws                                     timbre: spread
+//   3 fm      2-op FM, ratio 1:1 (keys, e-piano)                 timbre: index (follows the mod env)
+//   4 bell    2-op FM, ratio 1:3.5 (bells, mallets)              timbre: index (follows the mod env)
+//   5 sync    hard-sync saw                                      timbre: slave pitch (1x → 7x)
+//   6 fold    wave-folded sine                                   timbre: fold amount
+//   7 organ   additive drawbars 1, 2, 3, 4, 6, 8                 timbre: upper drawbars
+const DERIVA_OSC = ["morph", "pulse", "super", "fm", "bell", "sync", "fold", "organ"];
+const DERIVA_SUPER = [-1, -0.62, -0.28, 0, 0.27, 0.6, 1];
 function derivaShape(shape, ph, dt) {
   switch (shape) {
     case 0: return Math.sin(2 * Math.PI * ph);
@@ -135,7 +155,7 @@ class DerivaDSP {
     this.sr = sr;
     this.p = {
       glideTime: 0.55, glideCurve: 3, glideMode: 0, glideFrom: 1, cascade: 0.15, cascadeDir: 0, voices: 8,
-      wave: 1.6, detune: 8, octave: 0, sub: 0.2, noise: 0,
+      osc: 0, timbre: 0.5, wave: 1.6, detune: 8, octave: 0, sub: 0.2, noise: 0,
       cutoff: 2200, resonance: 0.15, filterEnv: 0.25, keyTrack: 0.4,
       ampA: 0.03, ampD: 0.6, ampS: 0.8, ampR: 1.2, modA: 0.01, modD: 0.8, modS: 0.2, modR: 0.8,
       lfoShape: 0, lfoRate: 0.4, lfoAmount: 0.2, lfoTarget: 1,
@@ -146,7 +166,8 @@ class DerivaDSP {
       this.voices.push({
         note: -1, hasPitch: false, velocity: 0,
         pitch: 60, startPitch: 60, targetPitch: 60, gliding: false, delay: 0, glideSamples: 1, glidePos: 0,
-        ph1: 0, ph2: 0.25, phSub: 0, ic1: 0, ic2: 0, pan: 0, panTarget: 0,
+        ph1: 0, ph2: 0.25, phSub: 0, phM: 0, phS: 0, ss: Float64Array.from(DERIVA_SUPER, (_, k) => (k * 0.137 + i * 0.29) % 1),
+        ic1: 0, ic2: 0, pan: 0, panTarget: 0,
         amp: new DerivaEnvelope(sr), mod: new DerivaEnvelope(sr),
       });
     }
@@ -352,6 +373,11 @@ class DerivaDSP {
     for (const v of V) { v.amp.set(p.ampA, p.ampD, p.ampS, p.ampR); v.mod.set(p.modA, p.modD, p.modS, p.modR); }
     if (Math.round(p.voices) !== this.lastVoiceLimit) { this.lastVoiceLimit = Math.round(p.voices); this.reallocate(false); }
 
+    const osc = Math.min(7, Math.max(0, Math.round(p.osc || 0))), tim = Math.min(1, Math.max(0, p.timbre ?? 0.5));
+    const pw = 0.5 - 0.45 * tim, superSpread = (4 + p.detune * 0.9) * (0.25 + 1.75 * tim), syncR = 1 + 6 * tim;
+    const foldG = (1 + 4.5 * tim) * Math.PI / 2, orgUp = tim;
+    const superR = DERIVA_SUPER.map(o => Math.pow(2, o * superSpread / 1200));
+    const oscGain = [1, 0.5, 0.85, 0.55, 0.6, 0.55, 0.5, 0.9][osc]; // all types at about the same loudness
     const seg = Math.min(2, Math.max(0, Math.floor(p.wave)));
     const frac = Math.min(1, Math.max(0, p.wave - seg));
     const detR = Math.pow(2, p.detune / 2400);
@@ -386,18 +412,57 @@ class DerivaDSP {
         }
         const freq = 440 * Math.pow(2, (v.pitch + oct + lfoPitch + this.bend - 69) / 12);
         const inc = freq / sr, i1 = inc * detR, i2 = inc / detR;
-        let a1 = derivaShape(seg, v.ph1, i1), a2 = derivaShape(seg, v.ph2, i2);
-        if (frac > 1e-4) {
-          a1 += (derivaShape(seg + 1, v.ph1, i1) - a1) * frac;
-          a2 += (derivaShape(seg + 1, v.ph2, i2) - a2) * frac;
+        const mod = v.mod.next();
+        const TAU = 2 * Math.PI;
+        let a1, a2;
+        switch (osc) {
+          case 1: a1 = derivaPulse(v.ph1, i1, pw); a2 = derivaPulse(v.ph2, i2, pw); break;
+          case 2: {
+            let sum = 0;
+            for (let k = 0; k < 7; k++) {
+              const d = inc * superR[k];
+              sum += derivaSaw(v.ss[k], d) * (k === 3 ? 1 : 0.72);
+              v.ss[k] += d; if (v.ss[k] >= 1) v.ss[k] -= Math.floor(v.ss[k]);
+            }
+            a1 = a2 = sum * 0.3;
+            break;
+          }
+          case 3: case 4: {
+            const ratio = osc === 3 ? 1 : 3.5, idx = tim * (osc === 3 ? 4.5 : 7) * (0.3 + 0.7 * mod);
+            const m = Math.sin(TAU * v.phM) * idx;
+            a1 = Math.sin(TAU * v.ph1 + m); a2 = Math.sin(TAU * v.ph2 + m);
+            v.phM += inc * ratio; if (v.phM >= 1) v.phM -= Math.floor(v.phM);
+            break;
+          }
+          case 5: {
+            const ds = inc * syncR;
+            a1 = 2 * v.phS - 1; a2 = derivaSaw(v.ph2, i2) * 0.35;
+            v.phS += ds; if (v.phS >= 1) v.phS -= Math.floor(v.phS);
+            if (v.ph1 + i1 >= 1) v.phS = (v.ph1 + i1 - 1) / i1 * ds; // the master wrapped: restart the slave
+            a1 = a1 * 0.8 + a2; a2 = a1;
+            break;
+          }
+          case 6: a1 = Math.sin(foldG * Math.sin(TAU * v.ph1)); a2 = Math.sin(foldG * Math.sin(TAU * v.ph2)); break;
+          case 7: {
+            const o = (ph) => Math.sin(TAU * ph) + 0.62 * Math.sin(2 * TAU * ph) + 0.4 * Math.sin(3 * TAU * ph)
+              + orgUp * (0.42 * Math.sin(4 * TAU * ph) + 0.3 * Math.sin(6 * TAU * ph) + 0.24 * Math.sin(8 * TAU * ph));
+            const nrm = 1 / (1.6 + orgUp * 0.7);
+            a1 = o(v.ph1) * nrm; a2 = o(v.ph2) * nrm;
+            break;
+          }
+          default:
+            a1 = derivaShape(seg, v.ph1, i1); a2 = derivaShape(seg, v.ph2, i2);
+            if (frac > 1e-4) {
+              a1 += (derivaShape(seg + 1, v.ph1, i1) - a1) * frac;
+              a2 += (derivaShape(seg + 1, v.ph2, i2) - a2) * frac;
+            }
         }
-        let x = 0.5 * (a1 + a2) + p.sub * Math.sin(2 * Math.PI * v.phSub);
+        let x = 0.5 * (a1 + a2) * oscGain + p.sub * Math.sin(TAU * v.phSub);
         if (p.noise > 0) x += p.noise * (Math.random() * 2 - 1);
         v.ph1 += i1; if (v.ph1 >= 1) v.ph1 -= Math.floor(v.ph1);
         v.ph2 += i2; if (v.ph2 >= 1) v.ph2 -= Math.floor(v.ph2);
         v.phSub += inc * 0.5; if (v.phSub >= 1) v.phSub -= Math.floor(v.phSub);
 
-        const mod = v.mod.next();
         let fc = p.cutoff * Math.pow(2, p.filterEnv * mod * 6 + p.keyTrack * (v.pitch - 60) / 12 + lfoFilt);
         fc = Math.min(maxFc, Math.max(20, fc));
         const g = Math.tan(Math.PI * fc / sr);
