@@ -1,0 +1,541 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Estúdio</title>
+<meta name="description" content="BeatVox e Deriva no mesmo estúdio, com o teclado MIDI.">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0f0e0d">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="deriva/fonts/fonts.css">
+<style>
+/* layout: a slim transport bar on top, the two apps below as full-height panes (only one shown) */
+:root {
+  --bar: #0f0e0d; --bar-2: #1a1917; --bar-3: #262421; --ink: #ece8e1; --dim: #8f8a81; --line: #2e2c29;
+  --gold: #d8b46a; --orange: #ff5a1f; --rec: #e0362c; --ok: #6fcf8e;
+  --f-sans: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+  --barh: 56px;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; margin: 0; background: var(--bar); color: var(--ink); font-family: var(--f-sans); overflow: hidden; }
+body { display: flex; flex-direction: column; padding-top: env(safe-area-inset-top, 0px); }
+button { font: inherit; color: inherit; }
+button:focus-visible, select:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }
+
+.bar {
+  height: var(--barh); flex: none; display: flex; align-items: center; gap: 14px;
+  padding-left: max(14px, env(safe-area-inset-left, 0px)); padding-right: max(14px, env(safe-area-inset-right, 0px));
+  border-bottom: 1px solid var(--line); background: var(--bar); user-select: none; -webkit-user-select: none;
+}
+.brand { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 15px; letter-spacing: .01em; }
+.tabs { display: flex; background: var(--bar-2); border-radius: 22px; padding: 3px; gap: 2px; }
+.tabs button {
+  border: 0; background: transparent; border-radius: 19px; padding: 0 16px; height: 38px; font-size: 14px; color: var(--dim);
+  display: flex; align-items: center; gap: 8px; cursor: pointer;
+}
+.tabs button[aria-selected="true"] { background: var(--bar-3); color: var(--ink); font-weight: 600; }
+.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.dot.gold { background: var(--gold); } .dot.orange { background: var(--orange); }
+.spacer { flex: 1; }
+.transport { display: flex; align-items: center; gap: 8px; }
+.tbtn {
+  height: 40px; min-width: 44px; border: 0; border-radius: 20px; background: var(--bar-2); cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 0 14px; font-size: 13px; font-weight: 600;
+}
+.tbtn svg { width: 16px; height: 16px; fill: currentColor; }
+.tbtn.play[aria-pressed="true"] { background: var(--ink); color: var(--bar); }
+.tbtn.rec .led { width: 10px; height: 10px; border-radius: 50%; background: #5a2622; }
+.tbtn.rec[aria-pressed="true"] { background: rgba(224,54,44,.18); color: #ffb3ad; }
+.tbtn.rec[aria-pressed="true"] .led { background: var(--rec); box-shadow: 0 0 0 4px rgba(224,54,44,.25); }
+.tbtn.small { font-weight: 400; color: var(--dim); }
+.tbtn.small[aria-pressed="true"] { color: var(--ink); background: var(--bar-3); }
+.readout { display: flex; align-items: baseline; gap: 6px; background: var(--bar-2); border-radius: 20px; height: 40px; padding: 0 12px; font-variant-numeric: tabular-nums; }
+.readout b { font: 600 15px var(--f-mono); align-self: center; min-width: 3ch; text-align: center; }
+.readout small { color: var(--dim); font-size: 11px; align-self: center; }
+.readout .step { border: 0; background: transparent; width: 28px; height: 32px; align-self: center; cursor: pointer; font-size: 18px; color: var(--dim); border-radius: 14px; }
+.readout .step:active { background: var(--bar-3); color: var(--ink); }
+.midi { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px; border-radius: 20px; background: var(--bar-2); border: 0; cursor: pointer; font-size: 12.5px; color: var(--dim); max-width: 260px; }
+.midi .led { width: 8px; height: 8px; border-radius: 50%; background: #4a4743; flex: none; transition: background .08s; }
+.midi.on .led { background: var(--ok); }
+.midi.on { color: var(--ink); }
+.midi .led.flash { background: #fff; }
+.midi span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.iconbtn { width: 40px; height: 40px; border: 0; border-radius: 20px; background: var(--bar-2); cursor: pointer; display: grid; place-items: center; }
+.iconbtn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; }
+
+.frames { flex: 1; position: relative; min-height: 0; padding-bottom: env(safe-area-inset-bottom, 0px); }
+.frames iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; }
+.frames iframe.off { display: none; }
+
+.toast {
+  position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%);
+  background: var(--bar-3); color: var(--ink); border-radius: 22px; padding: 10px 16px; font-size: 13px; box-shadow: 0 10px 30px rgba(0,0,0,.4);
+  max-width: calc(100% - 32px);
+}
+
+/* start screen */
+.start { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; background: radial-gradient(120% 90% at 50% 10%, #1d1b18 0%, #0b0a09 70%); padding: 24px; }
+.start .card { max-width: 460px; display: grid; gap: 16px; text-align: center; justify-items: center; }
+.start h1 { margin: 0; font-size: 34px; font-weight: 600; letter-spacing: -.01em; }
+.start p { margin: 0; color: var(--dim); line-height: 1.55; font-size: 14.5px; text-wrap: balance; }
+.start .go { height: 56px; padding: 0 34px; border-radius: 28px; border: 0; background: var(--ink); color: var(--bar); font-size: 16px; font-weight: 600; cursor: pointer; }
+.start .go:disabled { opacity: .45; cursor: default; }
+.start .pair { display: flex; gap: 10px; align-items: center; color: var(--dim); font-size: 13px; }
+.start .pair i { width: 30px; height: 1px; background: var(--line); }
+
+/* settings */
+dialog { border: 1px solid var(--line); border-radius: 16px; background: #161513; color: var(--ink); padding: 0; width: min(560px, calc(100% - 32px)); max-height: calc(100% - 48px); }
+dialog::backdrop { background: rgba(0,0,0,.55); }
+.dlg { padding: 20px 22px 22px; display: grid; gap: 18px; overflow: auto; }
+.dlg h2 { margin: 0; font-size: 18px; font-weight: 600; }
+.dlg h3 { margin: 0 0 8px; font-size: 12px; font-weight: 600; color: var(--dim); text-transform: uppercase; letter-spacing: .08em; }
+.dlg p { margin: 0; color: var(--dim); font-size: 13px; line-height: 1.5; }
+.rows { display: grid; gap: 6px; }
+.row { display: flex; align-items: center; gap: 10px; background: var(--bar-2); border-radius: 10px; padding: 8px 10px; min-height: 44px; font-size: 14px; }
+.row .grow { flex: 1; min-width: 0; }
+.row code { font: 12px var(--f-mono); color: var(--dim); }
+.chipbtn { height: 32px; border: 0; border-radius: 16px; padding: 0 12px; background: var(--bar-3); cursor: pointer; font-size: 12.5px; }
+.chipbtn.on { background: var(--orange); color: #1b0d06; font-weight: 600; }
+select { background: var(--bar-3); color: var(--ink); border: 0; border-radius: 8px; height: 32px; padding: 0 8px; font: 13px var(--f-sans); }
+.dlg .actions { display: flex; justify-content: space-between; gap: 10px; }
+.swatch { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--orange); }
+
+@media (max-width: 860px) {
+  .brand span, .readout small, .tbtn .lbl { display: none; }
+  .bar { gap: 8px; }
+  .midi { max-width: 44px; padding: 0; justify-content: center; }
+  .midi span { display: none; }
+}
+@media (max-width: 560px) {
+  :root { --barh: 104px; }
+  .bar { flex-wrap: wrap; height: auto; min-height: var(--barh); padding-block: 6px; row-gap: 6px; }
+  .transport { order: 3; width: 100%; justify-content: space-between; }
+  .spacer { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .midi .led { transition: none; } }
+</style>
+</head>
+<body>
+<header class="bar">
+  <div class="brand">
+    <svg width="26" height="22" viewBox="0 0 34 30" aria-hidden="true">
+      <g fill="none" stroke="#ece8e1" stroke-width="2.2" stroke-linecap="round"><path d="M3 15 C12 15 14 6 25 6"/><path d="M3 15 C12 15 14 15 25 15"/><path d="M3 15 C12 15 14 24 25 24"/></g>
+      <circle cx="25" cy="6" r="2.8" fill="#ff5a1f"/><circle cx="3" cy="15" r="2.8" fill="#d8b46a"/>
+    </svg>
+    <span>Estúdio</span>
+  </div>
+  <nav class="tabs" role="tablist" aria-label="Apps">
+    <button role="tab" id="tab-bv" aria-selected="true" aria-controls="bv"><i class="dot gold"></i>BeatVox</button>
+    <button role="tab" id="tab-dv" aria-selected="false" aria-controls="dv"><i class="dot orange"></i>Deriva</button>
+  </nav>
+  <div class="spacer"></div>
+  <div class="transport">
+    <button class="tbtn play" id="play" aria-pressed="false" aria-label="Tocar">
+      <svg viewBox="0 0 16 16" id="playIcon"><path d="M4 2.5v11l9-5.5z"/></svg><span class="lbl" id="playLbl">Tocar</span>
+    </button>
+    <button class="tbtn rec" id="rec" aria-pressed="false" title="Grava o que tocas no teclado enquanto o beat toca"><i class="led"></i><span class="lbl">REC</span></button>
+    <button class="tbtn small" id="click" aria-pressed="true" title="Metrónomo">clique</button>
+    <div class="readout" title="Compasso.tempo"><b id="pos">1.1</b><small>pos</small></div>
+    <div class="readout"><button class="step" id="bpmDown" aria-label="Menos BPM">−</button><b id="bpm">90</b><button class="step" id="bpmUp" aria-label="Mais BPM">+</button><small>bpm</small></div>
+  </div>
+  <button class="midi" id="midiChip" title="Teclado MIDI"><i class="led" id="midiLed"></i><span id="midiName">sem MIDI</span></button>
+  <button class="iconbtn" id="settings" aria-label="Definições do teclado">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M5.5 18.5l1.7-1.7M16.8 7.2l1.7-1.7"/></svg>
+  </button>
+</header>
+
+<main class="frames">
+  <iframe id="bv" src="beatvox/index.html" title="BeatVox" allow="microphone; midi; autoplay; fullscreen"></iframe>
+  <iframe id="dv" src="deriva/index.html" title="Deriva" class="off" allow="midi; autoplay"></iframe>
+</main>
+
+<div class="start" id="start">
+  <div class="card">
+    <svg width="68" height="60" viewBox="0 0 34 30" aria-hidden="true">
+      <g fill="none" stroke="#ece8e1" stroke-width="1.8" stroke-linecap="round"><path d="M3 15 C12 15 14 6 25 6"/><path d="M3 15 C12 15 14 15 25 15"/><path d="M3 15 C12 15 14 24 25 24"/></g>
+      <circle cx="25" cy="6" r="2.6" fill="#ff5a1f"/><circle cx="3" cy="15" r="2.6" fill="#d8b46a"/>
+    </svg>
+    <h1>Estúdio</h1>
+    <div class="pair"><span>BeatVox</span><i></i><span>Deriva</span></div>
+    <p>As duas apps no mesmo relógio. Liga o teclado Arturia por USB-C (antes ou depois de começar): as teclas tocam o Deriva, os pads tocam a bateria.</p>
+    <button class="go" id="go" disabled>A carregar…</button>
+  </div>
+</div>
+
+<dialog id="dlg">
+  <div class="dlg">
+    <h2>Teclado MIDI</h2>
+    <section>
+      <h3>Entradas</h3>
+      <div class="rows" id="inputs"></div>
+    </section>
+    <section>
+      <h3>Pads → bateria do BeatVox</h3>
+      <div class="rows">
+        <div class="row"><span class="grow">Canal dos pads</span><select id="padCh"></select></div>
+      </div>
+      <p style="margin:8px 0">Toca em <b>aprender</b> e bate no pad que queres para esse som.</p>
+      <div class="rows" id="padRows"></div>
+    </section>
+    <section>
+      <h3>Knobs</h3>
+      <p>No separador <b>Deriva</b>, carrega em <b>MIDI learn</b>, toca num knob do ecrã e roda um knob do teclado. As ligações ficam guardadas neste tablet.</p>
+    </section>
+    <div class="actions">
+      <button class="chipbtn" id="padReset">repor pads</button>
+      <button class="chipbtn" id="dlgClose">fechar</button>
+    </div>
+  </div>
+</dialog>
+
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(() => {
+"use strict";
+const $ = id => document.getElementById(id);
+const bvFrame = $("bv"), dvFrame = $("dv");
+const bvWin = () => bvFrame.contentWindow;
+const dvWin = () => dvFrame.contentWindow;
+const bvApp = () => { try { return bvWin().BV && bvWin().BV.app; } catch (e) { return null; } };
+const dv = () => { try { return dvWin().DerivaAPI; } catch (e) { return null; } };
+
+// ------------------------------------------------------------ settings (this device only)
+const DRUMS = [
+  { id: "kick", nome: "Bombo", cor: "#e0a556" }, { id: "snare", nome: "Tarola", cor: "#d9707f" },
+  { id: "clap", nome: "Palmas", cor: "#f4ede1" }, { id: "hat", nome: "Hi-hat fechado", cor: "#8fc1b5" },
+  { id: "openhat", nome: "Hi-hat aberto", cor: "#b9a6d6" },
+];
+// General MIDI drum notes + the default 8 pads of Arturia keyboards (36–43)
+const DEFAULT_PADS = { 35: "kick", 36: "kick", 37: "snare", 38: "snare", 39: "clap", 40: "snare", 41: "hat", 42: "hat", 43: "openhat", 44: "hat", 45: "openhat", 46: "openhat" };
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+};
+const settings = Object.assign({ padChannel: 10, padMap: {}, disabledInputs: [], enabledAux: [] }, store.get("studio.settings", {}));
+const saveSettings = () => store.set("studio.settings", settings);
+const drumForNote = n => settings.padMap[n] || DEFAULT_PADS[n] || DRUMS[((n % 5) + 5) % 5].id;
+
+// ------------------------------------------------------------ shared clock for the two apps
+let rec = false;
+window.Studio = {
+  version: 1,
+  audio() {
+    const app = bvApp();
+    if (!app) return null;
+    const e = app.engine;
+    e.ensureCtx();
+    return { ctx: e.ctx, AWN: bvWin().AudioWorkletNode, dest: e.master || e.ctx.destination, timeOrigin: bvWin().performance.timeOrigin };
+  },
+  transport() {
+    const app = bvApp();
+    if (!app) return null;
+    const e = app.engine, st = app.state, spb = st.grid / 4;
+    const playing = !!e.playing && !!e.ctx;
+    const stepDur = playing && e.playStepDur ? e.playStepDur : 60 / st.bpm / spb;
+    const loopBeats = playing && e.playLoopDur ? Math.round(e.playLoopDur / (stepDur * spb)) : st.bars * 4;
+    return { playing, t0: e.playT0 || 0, stepDur, stepsPerBeat: spb, loopBeats, bars: loopBeats / 4, bpm: st.bpm, recording: rec };
+  },
+};
+
+// audio-context time that was audible at a given hub performance.now() moment
+function heardAt(perfTimeHub) {
+  const app = bvApp(), c = app && app.engine.ctx;
+  if (!c) return 0;
+  const shift = performance.timeOrigin - bvWin().performance.timeOrigin;
+  if (c.getOutputTimestamp) {
+    const o = c.getOutputTimestamp();
+    if (o && o.performanceTime > 0) return o.contextTime + (perfTimeHub + shift - o.performanceTime) / 1000;
+  }
+  return c.currentTime - (c.outputLatency || c.baseLatency || 0.02) - (performance.now() - perfTimeHub) / 1000;
+}
+
+// ------------------------------------------------------------ tabs
+let tab = store.get("studio.tab", "bv");
+function setTab(t) {
+  tab = t;
+  bvFrame.classList.toggle("off", t !== "bv");
+  dvFrame.classList.toggle("off", t !== "dv");
+  $("tab-bv").setAttribute("aria-selected", String(t === "bv"));
+  $("tab-dv").setAttribute("aria-selected", String(t === "dv"));
+  store.set("studio.tab", t);
+}
+$("tab-bv").addEventListener("click", () => setTab("bv"));
+$("tab-dv").addEventListener("click", () => setTab("dv"));
+setTab(tab);
+
+// ------------------------------------------------------------ toast
+let toastTimer = null;
+function toast(msg, ms = 2600) {
+  const t = $("toast");
+  t.textContent = msg; t.hidden = false;
+  clearTimeout(toastTimer);
+  if (ms) toastTimer = setTimeout(() => (t.hidden = true), ms);
+}
+
+// ------------------------------------------------------------ start (needs a tap: audio + MIDI permission)
+let loaded = { bv: false, dv: false };
+function checkLoaded() {
+  if (bvApp() && dv()) { $("go").disabled = false; $("go").textContent = "Começar"; return true; }
+  return false;
+}
+bvFrame.addEventListener("load", () => { loaded.bv = true; checkLoaded(); });
+dvFrame.addEventListener("load", () => { loaded.dv = true; checkLoaded(); });
+const loadPoll = setInterval(() => { if (checkLoaded()) clearInterval(loadPoll); }, 300);
+
+$("go").addEventListener("click", async () => {
+  const app = bvApp();
+  if (!app || !dv()) return;
+  app.engine.ensureCtx();                       // inside the tap, so the audio can start on Android
+  if (app.engine.ctx.state !== "running") app.engine.ctx.resume().catch(() => {});
+  $("start").hidden = true;
+  try { await dv().start(); } catch (e) { console.warn(e); }
+  startMidi();
+});
+
+// ------------------------------------------------------------ transport bar
+const playBtn = $("play"), recBtn = $("rec");
+function togglePlay() {
+  const app = bvApp();
+  if (!app) return;
+  app.engine.ensureCtx();
+  if (app.togglePlay) app.togglePlay();
+  else { const b = bvWin().document.getElementById("btnPlay"); if (b) b.click(); }
+}
+playBtn.addEventListener("click", togglePlay);
+recBtn.addEventListener("click", () => {
+  rec = !rec;
+  recBtn.setAttribute("aria-pressed", String(rec));
+  const app = bvApp();
+  if (rec && app && !app.engine.playing) togglePlay();
+  toast(rec ? "REC: o que tocas no teclado fica gravado no loop" : "REC desligado");
+});
+$("click").addEventListener("click", () => {
+  const app = bvApp();
+  if (!app) return;
+  app.state.metronome = !app.state.metronome;
+  app.refresh();
+});
+function nudgeBpm(d) {
+  const app = bvApp();
+  if (!app) return;
+  app.state.bpm = Math.max(40, Math.min(240, app.state.bpm + d));
+  app.refresh();
+  if (app.engine.playing && app.restartIfPlaying) app.restartIfPlaying();
+}
+for (const [id, d] of [["bpmDown", -1], ["bpmUp", 1]]) {
+  let hold = null, rep = null;
+  const btn = $(id);
+  btn.addEventListener("pointerdown", e => {
+    e.preventDefault(); nudgeBpm(d);
+    hold = setTimeout(() => (rep = setInterval(() => nudgeBpm(d), 70)), 420);
+  });
+  const end = () => { clearTimeout(hold); clearInterval(rep); };
+  btn.addEventListener("pointerup", end); btn.addEventListener("pointerleave", end); btn.addEventListener("pointercancel", end);
+}
+
+// keep the screen awake while playing
+let wakeLock = null;
+async function syncWake(playing) {
+  try {
+    if (playing && !wakeLock && navigator.wakeLock) { wakeLock = await navigator.wakeLock.request("screen"); wakeLock.addEventListener("release", () => (wakeLock = null)); }
+    else if (!playing && wakeLock) { await wakeLock.release(); wakeLock = null; }
+  } catch (e) { wakeLock = null; }
+}
+
+let lastPlaying = null;
+function frame() {
+  const app = bvApp();
+  if (app) {
+    const e = app.engine, st = app.state;
+    const playing = !!e.playing;
+    if (playing !== lastPlaying) {
+      lastPlaying = playing;
+      playBtn.setAttribute("aria-pressed", String(playing));
+      $("playIcon").innerHTML = playing ? '<rect x="3.5" y="3.5" width="9" height="9" rx="1"/>' : '<path d="M4 2.5v11l9-5.5z"/>';
+      $("playLbl").textContent = playing ? "Parar" : "Tocar";
+      syncWake(playing);
+      if (!playing) app.draw && app.draw();
+    }
+    const pos = playing && e.position ? e.position() : null;
+    const grid = st.grid, spb = grid / 4;
+    $("pos").textContent = pos == null ? "1.1" : (Math.floor(pos / grid) + 1) + "." + (Math.floor((pos % grid) / spb) + 1);
+    $("bpm").textContent = st.bpm;
+    $("click").setAttribute("aria-pressed", String(!!st.metronome));
+  }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && lastPlaying) syncWake(true); });
+
+// ------------------------------------------------------------ pads -> BeatVox drums (and recording into its grid)
+let refreshTimer = null;
+function padHit(note, vel, ts) {
+  const app = bvApp();
+  if (!app) return;
+  const e = app.engine;
+  e.ensureCtx();
+  const drum = drumForNote(note);
+  e.playDrum(drum, e.ctx.currentTime, vel);
+  if (!rec || !e.playing || !e.playStepDur) return;
+  const stepDur = e.playStepDur, total = Math.round(e.playLoopDur / stepDur);
+  const abs = Math.round((heardAt(ts) - e.playT0) / stepDur);
+  if (abs < 0) return;
+  const step = ((abs % total) + total) % total;
+  const notes = app.state.drums.notes;
+  const hit = notes.find(n => n.step === step && n.drum === drum);
+  // skipAt: this exact pass already sounded live, so the loop must not play it again right now
+  if (hit) { hit.vel = vel; hit.skipAt = abs; }
+  else { notes.push({ step, drum, vel, skipAt: abs }); notes.sort((a, b) => a.step - b.step); }
+  clearTimeout(refreshTimer);
+  refreshTimer = setTimeout(() => { try { app.refresh(); } catch (err) {} }, 400);
+}
+
+// ------------------------------------------------------------ MIDI
+let midiAccess = null, learnDrum = null;
+const isAuxPort = name => /\b(MCU|HUI|DAW|DIN THRU|THRU)\b/i.test(name || "");
+// listening rule: normal ports unless switched off; auxiliary ports only when switched on (or when they are the only ports)
+function listening(inp, all) {
+  const hasMain = all.some(i => !isAuxPort(i.name));
+  if (isAuxPort(inp.name) && hasMain) return settings.enabledAux.includes(inp.name);
+  return !settings.disabledInputs.includes(inp.name);
+}
+// channel 10 = drums for the whole channel (General MIDI); on any other channel only the learned pad notes
+const isPadNote = (ch, note) => ch === settings.padChannel && (ch === 10 || note in settings.padMap);
+function onMidi(m) {
+  const d = m.data, st = d[0];
+  if (!d.length || st >= 0xf0) return;
+  const type = st & 0xf0, ch = (st & 0x0f) + 1;
+  flashLed();
+  if (learnDrum && type === 0x90 && d[2] > 0) {
+    for (const k of Object.keys(settings.padMap)) if (+k === d[1]) delete settings.padMap[k];
+    settings.padMap[d[1]] = learnDrum;
+    settings.padChannel = ch;
+    saveSettings();
+    toast(DRUMS.find(x => x.id === learnDrum).nome + " → nota " + d[1] + " (canal " + ch + ")");
+    learnDrum = null; renderSettings();
+    padHit(d[1], d[2], m.timeStamp);
+    return;
+  }
+  if ((type === 0x90 || type === 0x80) && isPadNote(ch, d[1])) {
+    if (type === 0x90 && d[2] > 0) padHit(d[1], d[2], m.timeStamp);
+    return;
+  }
+  const api = dv();
+  if (api) {
+    const shift = performance.timeOrigin - dvWin().performance.timeOrigin;
+    api.midi(d, m.timeStamp + shift);
+  }
+}
+let ledTimer = null;
+function flashLed() {
+  const led = $("midiLed");
+  led.classList.add("flash");
+  clearTimeout(ledTimer);
+  ledTimer = setTimeout(() => led.classList.remove("flash"), 60);
+}
+function hookInputs() {
+  if (!midiAccess) return;
+  const names = [];
+  const all = [...midiAccess.inputs.values()];
+  // Arturia keyboards also expose DAW/THRU ports: they are skipped unless switched on in the settings
+  for (const inp of all) {
+    const on = listening(inp, all);
+    inp.onmidimessage = on ? onMidi : null;
+    if (on) names.push(inp.name);
+  }
+  $("midiChip").classList.toggle("on", names.length > 0);
+  $("midiName").textContent = names.length ? names.join(", ") : "sem teclado";
+  renderSettings();
+}
+async function startMidi() {
+  if (!navigator.requestMIDIAccess) { $("midiName").textContent = "MIDI indisponível"; return; }
+  try {
+    midiAccess = await navigator.requestMIDIAccess({ sysex: false });
+    midiAccess.onstatechange = e => {
+      hookInputs();
+      if (e.port && e.port.type === "input" && e.port.state === "connected" && !isAuxPort(e.port.name)) toast("Ligado: " + e.port.name);
+    };
+    hookInputs();
+  } catch (e) {
+    $("midiName").textContent = "MIDI recusado";
+    toast("O browser não deu acesso ao MIDI. Toca no chip MIDI para tentar de novo.", 4000);
+  }
+}
+$("midiChip").addEventListener("click", () => { if (!midiAccess) startMidi(); else $("dlg").showModal(); });
+
+// ------------------------------------------------------------ settings dialog
+const padCh = $("padCh");
+for (let c = 1; c <= 16; c++) padCh.add(new Option("canal " + c, String(c)));
+padCh.addEventListener("change", () => { settings.padChannel = +padCh.value; saveSettings(); });
+function renderSettings() {
+  padCh.value = String(settings.padChannel);
+  const inputs = $("inputs");
+  inputs.innerHTML = "";
+  const all = midiAccess ? [...midiAccess.inputs.values()] : [];
+  if (!all.length) inputs.innerHTML = '<div class="row"><span class="grow" style="color:var(--dim)">' + (midiAccess ? "Nenhum teclado ligado. Liga o Arturia por USB-C." : "MIDI ainda não ligado.") + "</span></div>";
+  for (const inp of all) {
+    const row = document.createElement("label");
+    row.className = "row";
+    const cb = document.createElement("input");
+    cb.type = "checkbox"; cb.checked = listening(inp, all);
+    cb.addEventListener("change", () => {
+      settings.disabledInputs = settings.disabledInputs.filter(n => n !== inp.name);
+      settings.enabledAux = settings.enabledAux.filter(n => n !== inp.name);
+      if (isAuxPort(inp.name)) { if (cb.checked) settings.enabledAux.push(inp.name); }
+      else if (!cb.checked) settings.disabledInputs.push(inp.name);
+      saveSettings(); hookInputs();
+    });
+    const span = document.createElement("span");
+    span.className = "grow"; span.textContent = inp.name + (isAuxPort(inp.name) ? " (porta auxiliar, desligada por defeito)" : "");
+    row.append(cb, span);
+    inputs.appendChild(row);
+  }
+  const rows = $("padRows");
+  rows.innerHTML = "";
+  for (const d of DRUMS) {
+    const notes = new Set();
+    for (const [n, id] of Object.entries(DEFAULT_PADS)) if (id === d.id && !(n in settings.padMap)) notes.add(+n);
+    for (const [n, id] of Object.entries(settings.padMap)) if (id === d.id) notes.add(+n);
+    const row = document.createElement("div");
+    row.className = "row";
+    row.innerHTML = `<span class="swatch" style="background:${d.cor}"></span><span class="grow">${d.nome}</span><code>nota ${[...notes].sort((a, b) => a - b).join(" · ")}</code>`;
+    const b = document.createElement("button");
+    b.className = "chipbtn" + (learnDrum === d.id ? " on" : "");
+    b.textContent = learnDrum === d.id ? "bate num pad…" : "aprender";
+    b.addEventListener("click", () => { learnDrum = learnDrum === d.id ? null : d.id; renderSettings(); });
+    row.appendChild(b);
+    rows.appendChild(row);
+  }
+}
+$("settings").addEventListener("click", () => { renderSettings(); $("dlg").showModal(); });
+$("dlgClose").addEventListener("click", () => { learnDrum = null; $("dlg").close(); });
+$("dlg").addEventListener("close", () => { learnDrum = null; });
+$("padReset").addEventListener("click", () => { settings.padMap = {}; settings.padChannel = 10; saveSettings(); renderSettings(); toast("Pads repostos"); });
+renderSettings();
+
+// ------------------------------------------------------------ offline + updates
+if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
+  navigator.serviceWorker.register("sw.js").then(reg => {
+    reg.addEventListener("updatefound", () => {
+      const w = reg.installing;
+      if (!w) return;
+      w.addEventListener("statechange", () => {
+        if (w.state === "installed" && navigator.serviceWorker.controller) toast("Há uma versão nova. Fecha e volta a abrir a app para a usar.", 6000);
+      });
+    });
+  }).catch(() => {});
+}
+
+window.__studio = { onMidi, padHit, settings, setTab, heardAt };
+})();
+</script>
+</body>
+</html>

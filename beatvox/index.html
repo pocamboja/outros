@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="color-scheme" content="dark" />
+  <title>BeatVox</title>
+  <link rel="stylesheet" href="css/fonts.css" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.2v13.6L19 12z" fill="currentColor"/></symbol>
+    <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6.5" y="6.5" width="11" height="11" rx="1" fill="currentColor"/></symbol>
+    <symbol id="i-metro" viewBox="0 0 24 24"><path d="M9.2 3.5h5.6l3.7 16.5H5.5z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M7.4 15.5h9.2M12 15.5 16.8 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+    <symbol id="i-open" viewBox="0 0 24 24"><path d="M12 15V4m0 0-4 4m4-4 4 4M5 14v5h14v-5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-img" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="m6.5 16 4-4 3 3 2-2 2.5 2.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+    <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3.5" width="6" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M6 11.5a6 6 0 0 0 12 0M12 17.5v3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M7 3.5h7l4 4V20a.5.5 0 0 1-.5.5h-10.5A.5.5 0 0 1 6.5 20V4a.5.5 0 0 1 .5-.5z M14 3.5V8h4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M9.5 16.5v-4l4-1v4" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="8.6" cy="16.6" r="1.1" fill="currentColor"/><circle cx="12.6" cy="15.6" r="1.1" fill="currentColor"/></symbol>
+  </svg>
+
+  <canvas id="bg" aria-hidden="true"></canvas>
+  <div class="atmos" aria-hidden="true"></div>
+  <canvas id="eq" aria-hidden="true"></canvas>
+  <div class="grain" aria-hidden="true"></div>
+
+  <!-- ============ HUD fixo ============ -->
+  <header class="hud">
+    <a class="mark" href="#" data-go="0" aria-label="BeatVox, voltar ao início">BeatVox<i aria-hidden="true"></i></a>
+    <div class="hud-right">
+      <div class="readout"><span class="ro-label">Compasso</span><output id="posOut">1.1</output></div>
+      <div class="readout"><span class="ro-label">Andamento</span><span><output id="hudBpm">90</output> BPM</span></div>
+      <div class="readout" id="hudKeyWrap" hidden><span class="ro-label">Tom</span><output id="hudKey">Lá menor</output></div>
+      <button id="btnClick" class="metro" title="Metrónomo: clique a tocar e a gravar" aria-pressed="true"><i class="dot" aria-hidden="true"></i><svg><use href="#i-metro"/></svg><span>Clique</span></button>
+      <button id="btnPlay" class="play" title="Tocar ou parar (Espaço)" disabled><svg><use href="#i-play"/></svg><span>Tocar</span></button>
+    </div>
+  </header>
+
+  <nav class="rail" aria-label="Movimentos">
+    <div class="rail-line"><i id="railFill"></i></div>
+    <ol>
+      <li><button data-go="0"><b>I</b><span>Abertura</span></button></li>
+      <li><button data-go="1"><b>II</b><span>Andamento</span></button></li>
+      <li><button data-go="2"><b>III</b><span>Bateria</span></button></li>
+      <li><button data-go="3"><b>IV</b><span>Melodia</span></button></li>
+      <li><button data-go="4"><b>V</b><span>Mistura</span></button></li>
+      <li><button data-go="5"><b>VI</b><span>Exportar</span></button></li>
+    </ol>
+  </nav>
+
+  <div class="hud-status" role="status" aria-live="polite"><i class="pulse" aria-hidden="true"></i><span id="status">Pronto. Põe auscultadores e começa.</span></div>
+
+  <!-- ============ movimentos (camadas fixas, movidas pelo scroll) ============ -->
+  <main class="stage">
+
+    <!-- I Abertura -->
+    <section class="step s-intro" data-step="0" aria-label="Abertura">
+      <div class="step-inner">
+        <div class="intro-copy">
+          <p class="kicker" data-depth="0.15">Op. 1, para voz e MIDI</p>
+          <h1 class="display" data-depth="0.3">A tua voz<br />é o instrumento.</h1>
+          <p class="lede" data-depth="0.6">Faz beatbox e recebe a bateria. Canta uma melodia e recebe as notas, já no tom certo. Pronto para o FL Studio ou o Ableton, tudo no teu browser.</p>
+          <div class="actions" data-depth="0.9">
+            <button class="btn primary" data-go="1">Começar</button>
+            <button class="btn" data-go="2">Ir direto à bateria</button>
+          </div>
+        </div>
+        <div class="scroll-cue" aria-hidden="true"><span>Faz scroll</span><i></i></div>
+      </div>
+    </section>
+
+    <!-- II Andamento -->
+    <section class="step s-tempo" data-step="1" aria-label="Andamento">
+      <div class="step-inner">
+        <div class="step-head" data-depth="0.2">
+          <span class="movement">II</span>
+          <h2 class="title">Andamento</h2>
+          <p class="sub">Escolhe a velocidade e o tamanho do loop, e confirma que o microfone te ouve bem.</p>
+        </div>
+
+        <div class="tempo-core" data-depth="0.5">
+          <button class="nudge" data-bpm="-1" aria-label="Diminuir BPM">−</button>
+          <div class="bpm-big">
+            <input id="bpm" type="number" min="50" max="200" value="90" aria-label="Andamento em BPM" />
+            <span>batidas por minuto</span>
+          </div>
+          <button class="nudge" data-bpm="1" aria-label="Aumentar BPM">+</button>
+        </div>
+        <div class="tempo-actions" data-depth="0.6">
+          <button class="btn" id="btnMetro">Ouvir o clique</button>
+          <button class="btn tap" id="btnTap">Marcar o tempo</button>
+        </div>
+
+        <div class="tempo-grid" data-depth="0.8">
+          <div class="group">
+            <span class="g-label">Compassos</span>
+            <div class="seg" id="bars"><button data-v="1">1</button><button data-v="2">2</button><button data-v="4">4</button></div>
+          </div>
+          <div class="group">
+            <span class="g-label">Grelha</span>
+            <div class="seg" id="grid"><button data-v="8">1/8</button><button data-v="16">1/16</button><button data-v="32">1/32</button></div>
+          </div>
+          <div class="group">
+            <span class="g-label">Monitor</span>
+            <div class="toggles">
+              <label class="switch"><input type="checkbox" id="metronome" checked /><i></i>Clique</label>
+              <label class="switch"><input type="checkbox" id="headphones" checked /><i></i>Auscultadores</label>
+            </div>
+          </div>
+          <div class="group mic">
+            <span class="g-label">Microfone</span>
+            <div class="mic-row">
+              <div class="select"><select id="micSel" aria-label="Microfone"><option value="">Microfone predefinido</option></select></div>
+              <button class="btn small" id="btnMicTest"><svg><use href="#i-mic"/></svg><span>Testar</span></button>
+            </div>
+            <div class="meter" aria-hidden="true"><i id="micMeter"></i></div>
+            <span class="hint" id="micHint">Testa e fala ou faz beatbox: a barra deve chegar a meio.</span>
+          </div>
+          <div class="group latency">
+            <span class="g-label">Latência</span>
+            <div class="lat-row">
+              <div class="knob-wrap">
+                <input type="range" id="lat" min="-100" max="400" value="0" data-knob data-color="gold" aria-label="Latência" />
+                <output id="latOut" class="chip">auto</output>
+              </div>
+              <div class="lat-actions">
+                <button id="btnCal" class="btn small">Calibrar</button>
+                <button id="btnLatAuto" class="btn small ghost">Automática</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <button class="btn primary next" data-go="2" data-depth="1">Seguinte: gravar a bateria</button>
+      </div>
+    </section>
+
+    <!-- III Bateria -->
+    <section class="step s-studio s-drums" data-step="2" aria-label="Bateria">
+      <div class="step-inner studio-layout">
+        <aside class="panel" data-depth="0.4">
+          <span class="movement">III</span>
+          <h2 class="title">Bateria</h2>
+          <p class="sub">Faz beatbox depois da contagem.</p>
+          <ul class="vocab">
+            <li><i style="--c: var(--kick)"></i><span><b>bum</b> bombo</span></li>
+            <li><i style="--c: var(--snare)"></i><span><b>pf</b> ou <b>ka</b> tarola</span></li>
+            <li><i style="--c: var(--hat)"></i><span><b>ts</b> hi-hat</span></li>
+          </ul>
+          <button id="btnRec" class="rec" title="Gravar (R)"><span class="rec-ring" aria-hidden="true"></span><span class="rec-core" aria-hidden="true"></span><span class="rec-label">Gravar</span></button>
+          <button id="btnOpen" class="btn small"><svg><use href="#i-open"/></svg>Abrir áudio</button>
+          <section id="trainCard" class="mini">
+            <p class="hint" id="trainState">A comparar os teus sons entre si: o mais grave é o bombo, o mais agudo o hi-hat.</p>
+            <button id="btnTrain" class="btn small ghost">Treinar com a minha voz</button>
+          </section>
+          <button class="btn primary next" data-go="3">Seguinte: melodia</button>
+        </aside>
+        <div class="studio-slot" data-slot="2"></div>
+      </div>
+    </section>
+
+    <!-- IV Melodia -->
+    <section class="step s-studio s-lead" data-step="3" aria-label="Melodia">
+      <div class="step-inner studio-layout">
+        <aside class="panel" data-depth="0.4">
+          <span class="movement">IV</span>
+          <h2 class="title">Melodia</h2>
+          <p class="sub">Canta com vogais longas: lá, na-na, du-du.</p>
+          <button id="btnRecLead" class="rec" title="Gravar (R)"><span class="rec-ring" aria-hidden="true"></span><span class="rec-core" aria-hidden="true"></span><span class="rec-label">Gravar</span></button>
+          <button id="btnOpenLead" class="btn small"><svg><use href="#i-open"/></svg>Abrir áudio</button>
+          <label class="switch"><input type="checkbox" id="overBeat" /><i></i>Ouvir o beat enquanto canto</label>
+          <p class="hint" id="overBeatHint">Grava primeiro a bateria para cantares por cima dela.</p>
+          <section id="fxCard" class="fx-card">
+            <div class="fx-head">
+              <span class="g-label">Efeitos da voz</span>
+              <label class="switch" title="Ligar ou desligar todos"><input type="checkbox" id="fxAll" /><i></i></label>
+            </div>
+            <div class="fx-grid" id="fxGrid"></div>
+            <p class="hint" id="fxHint"></p>
+            <button id="btnVoiceCal" class="btn small ghost">Calibrar a voz</button>
+          </section>
+          <section id="leadCard" class="lead-fields">
+            <div class="field"><label for="keySel">Tom</label><div class="select"><select id="keySel"></select></div></div>
+            <div class="field"><label for="scaleSel">Escala</label><div class="select"><select id="scaleSel"></select></div></div>
+            <p class="hint" id="keyInfo">O tom é detetado depois de gravares.</p>
+            <div class="field">
+              <span class="flabel">Oitava</span>
+              <div class="stepper"><button data-oct="-1" aria-label="Oitava abaixo">−</button><output id="octOut">0</output><button data-oct="1" aria-label="Oitava acima">+</button></div>
+            </div>
+            <div class="field col">
+              <span class="flabel">Som</span>
+              <div class="seg" id="preset"><button data-v="synth">Synth</button><button data-v="pluck">Pluck</button><button data-v="sine">Suave</button></div>
+            </div>
+          </section>
+          <button class="btn primary next" data-go="4">Seguinte: mistura</button>
+        </aside>
+        <div class="studio-slot" data-slot="3"></div>
+      </div>
+    </section>
+
+    <!-- V Mistura: palco 3D -->
+    <section class="step s-mix" data-step="4" aria-label="Mistura">
+      <canvas id="stage3d" aria-label="Palco 3D da mistura: cada camada é uma dimensão do som"></canvas>
+      <div class="step-inner mix-layout">
+        <header class="mix-head" data-depth="0.3">
+          <span class="movement">V</span>
+          <h2 class="title">Mistura</h2>
+          <p class="sub">Cada camada é uma dimensão do som, dos graves (em baixo) aos agudos (em cima). Arrasta um som para os lados (pan) ou para a frente (mais alto). Arrasta o fundo para rodar.</p>
+        </header>
+        <aside class="panel mix-insp" id="mixInsp" data-depth="0.5" aria-label="Ajustes do som"></aside>
+        <div class="mix-bar" data-depth="0.6">
+          <div class="group">
+            <span class="g-label">Dimensões</span>
+            <div class="seg" id="dimsSeg"><button data-v="3">3</button><button data-v="6">6</button></div>
+          </div>
+          <label class="switch" title="Um baixo 808 que toca com o bombo, no tom da melodia"><input type="checkbox" id="bassOn" /><i></i>Baixo 808</label>
+          <label class="switch"><input type="checkbox" id="autoRot" checked /><i></i>Rodar</label>
+          <div class="zoom-btns">
+            <button class="icon-btn" id="zoomIn" title="Aproximar" aria-label="Aproximar">+</button>
+            <button class="icon-btn" id="zoomOut" title="Afastar" aria-label="Afastar">−</button>
+          </div>
+          <button class="btn small ghost" id="btnMixReset" title="Volumes, pan, EQ, sons e efeitos voltam ao início">Repor</button>
+        </div>
+        <button class="btn primary next mix-next" data-go="5">Seguinte: exportar</button>
+      </div>
+    </section>
+
+    <!-- VI Exportar -->
+    <section class="step s-export" data-step="5" aria-label="Exportar">
+      <div class="step-inner">
+        <div class="step-head" data-depth="0.2">
+          <span class="movement">VI</span>
+          <h2 class="title big">O teu disco está pronto.</h2>
+        </div>
+        <div class="press">
+          <figure class="cover" data-depth="0.5">
+            <canvas id="cover" width="1120" height="1120" aria-label="Capa do teu beat"></canvas>
+            <button id="btnCoverPlay" class="cover-play" title="Ouvir (Espaço)" aria-label="Ouvir"><svg><use href="#i-play"/></svg></button>
+            <figcaption class="cover-cap">
+              <span><output id="sumDrums">0</output> notas de bateria</span>
+              <span><output id="sumLead">0</output> de melodia</span>
+              <span><output id="sumBpm">90</output> BPM</span>
+              <span id="sumKeyWrap"><output id="sumKey">—</output></span>
+            </figcaption>
+          </figure>
+          <div class="press-side" data-depth="0.8">
+            <div class="press-opts">
+              <label class="name-field"><span class="g-label">Nome</span><input id="projName" type="text" maxlength="40" spellcheck="false" placeholder="Sem título" autocomplete="off" /></label>
+              <div class="group">
+                <span class="g-label">Repetições do loop</span>
+                <div class="seg" id="loopsSeg"><button data-v="1">1×</button><button data-v="2">2×</button><button data-v="4">4×</button><button data-v="8">8×</button></div>
+              </div>
+            </div>
+            <ul class="out-list">
+              <li>
+                <div class="out-txt"><b>MIDI</b><span>Notas editáveis para o FL Studio, Ableton ou Logic. Bateria em General MIDI no canal 10.</span></div>
+                <div class="out-btns">
+                  <button id="btnMidiAll" class="btn small" disabled>Completo</button>
+                  <button id="btnMidiDrums" class="btn small ghost" disabled>Bateria</button>
+                  <button id="btnMidiLead" class="btn small ghost" disabled>Melodia</button>
+                </div>
+              </li>
+              <li>
+                <div class="out-txt"><b>Áudio WAV</b><span>O beat já tocado, 44,1 kHz. Stems: bateria e melodia em ficheiros separados.</span></div>
+                <div class="out-btns">
+                  <button id="btnWav" class="btn small" disabled>Mistura</button>
+                  <button id="btnStems" class="btn small ghost" disabled>Stems</button>
+                </div>
+              </li>
+              <li>
+                <div class="out-txt"><b>Capa</b><span>Imagem quadrada para partilhar.</span></div>
+                <div class="out-btns"><button id="btnCover" class="btn small ghost">PNG</button></div>
+              </li>
+              <li>
+                <div class="out-txt"><b>Projeto</b><span>Guarda as notas e definições para continuar depois (a gravação da voz não vai no ficheiro).</span></div>
+                <div class="out-btns">
+                  <button id="btnSaveProj" class="btn small ghost" disabled>Guardar</button>
+                  <button id="btnOpenProj" class="btn small ghost">Abrir</button>
+                </div>
+              </li>
+            </ul>
+            <button id="btnAll" class="btn primary wide" disabled title="MIDI, WAV, stems, capa e projeto num só zip"><svg><use href="#i-file"/></svg>Descarregar tudo (.zip)</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- estúdio partilhado: muda entre os movimentos Bateria e Melodia -->
+  <div class="studio" id="studio">
+    <div class="arrange">
+      <div class="heads" id="heads"></div>
+      <div class="scroller" id="scroller"><canvas id="canvas"></canvas></div>
+      <div class="empty" id="empty">
+        <div id="emptyDrums">
+          <h3>A grelha está vazia</h3>
+          <p>Carrega em <b>Gravar</b> e faz beatbox, ou clica nas células para desenhar notas.</p>
+        </div>
+        <div id="emptyLead" hidden>
+          <h3>O piano roll está vazio</h3>
+          <p>Carrega em <b>Gravar</b> e canta, ou clica para criar notas. Arrasta para mover, puxa a ponta direita para alongar.</p>
+        </div>
+      </div>
+    </div>
+    <div class="studio-bar">
+      <div class="knob-wrap inline">
+        <input type="range" id="sens" min="0" max="100" value="50" data-knob data-color="gold" aria-label="Sensibilidade" />
+        <div><span class="k-label">Sensibilidade</span><output id="sensOut" class="chip">50%</output></div>
+      </div>
+      <div class="stats-wrap" id="statsCard" hidden>
+        <span class="stats-title" id="statsTitle">O teu timing</span>
+        <div class="stats" id="stats"></div>
+      </div>
+      <div class="bar-actions">
+        <label class="switch"><input type="checkbox" id="withVoice" /><i></i>Ouvir a voz</label>
+        <button id="btnPng" class="icon-btn" disabled title="Guardar imagem da grelha" aria-label="Guardar imagem da grelha"><svg><use href="#i-img"/></svg></button>
+        <button id="btnClear" class="icon-btn" title="Limpar esta pista" aria-label="Limpar esta pista"><svg><use href="#i-x"/></svg></button>
+      </div>
+    </div>
+  </div>
+
+  <div id="track" aria-hidden="true"></div>
+  <input type="file" id="fileIn" accept="audio/*,.wav,.mp3,.m4a,.ogg,.webm" hidden />
+  <input type="file" id="projIn" accept=".json,.beatvox,application/json" hidden />
+
+  <div class="overlay" id="overlay" hidden>
+    <div class="count">
+      <div class="big" id="ovBig">1</div>
+      <div class="sub" id="ovSub">Contagem</div>
+      <div class="bar"><div id="ovBar"></div></div>
+      <div class="ov-meter" aria-hidden="true"><span>Microfone</span><div class="meter"><i id="ovMeter"></i></div></div>
+    </div>
+  </div>
+
+  <dialog id="trainDlg">
+    <form method="dialog" class="dlg">
+      <header>
+        <h3>Treinar com a minha voz</h3>
+        <button class="icon-btn" value="close" aria-label="Fechar"><svg><use href="#i-x"/></svg></button>
+      </header>
+      <p class="hint">Para cada peça, carrega em <b>Gravar exemplos</b> e faz o som em cada clique (2 compassos a 90 BPM). Precisas de pelo menos 2 peças treinadas.</p>
+      <div id="trainRows"></div>
+      <footer>
+        <button type="button" class="btn small ghost" id="btnTrainReset">Voltar à deteção automática</button>
+        <button class="btn small primary" value="close">Feito</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <dialog id="calDlg">
+    <form method="dialog" class="dlg">
+      <header>
+        <h3>Calibrar a voz</h3>
+        <button class="icon-btn" value="close" aria-label="Fechar"><svg><use href="#i-x"/></svg></button>
+      </header>
+      <p class="hint">Cada take tem um compasso a 90 BPM, depois da contagem. Canta sempre na mesma nota e sem parar. Com as 5 takes, os efeitos passam a comparar-te contigo próprio: o teu "rasgado", o teu "com ar", as tuas vogais.</p>
+      <div id="calRows"></div>
+      <footer>
+        <button type="button" class="btn small ghost" id="btnCalReset">Voltar aos valores médios</button>
+        <button class="btn small primary" value="close">Feito</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <script src="js/dsp.js"></script>
+  <script src="js/classifier.js"></script>
+  <script src="js/pitch.js"></script>
+  <script src="js/voicefx.js"></script>
+  <script src="js/midi.js"></script>
+  <script src="js/mixer.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/zip.js"></script>
+  <script src="js/knob.js"></script>
+  <script src="js/scene.js"></script>
+  <script src="js/eq3d.js"></script>
+  <script src="js/stage3d.js"></script>
+  <script src="js/flow.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

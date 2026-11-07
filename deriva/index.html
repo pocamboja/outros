@@ -1,0 +1,1165 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Deriva</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="fonts/fonts.css">
+<style>
+/* layout: one instrument ("the device") centred on a quiet page; the device mirrors the VST3 UI 1:1 */
+:root {
+  --page: #d3cfc7; --page-ink: #262421; --page-dim: #6b675f;
+  --dev: #e7e4dd; --panel: #f1efea; --edge: #d9d5cc; --ink: #1b1a18; --dim: #8a857c; --seg: #e2ded6;
+  --knob: #1d1d1c; --tick: #f4f2ed; --track: #d6d2c9; --accent: #ff5a1f; --accent-ink: #c73d0b;
+  --screen: #121211; --grid: #2a2927; --stext: #77726a; --line: #eeebe4;
+  --f-sans: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --page: #0e0e0d; --page-ink: #e9e6df; --page-dim: #8f8a81; color-scheme: dark; }
+}
+:root[data-theme="dark"] { --page: #0e0e0d; --page-ink: #e9e6df; --page-dim: #8f8a81; color-scheme: dark; }
+
+* { box-sizing: border-box; }
+html, body { background: var(--page); color: var(--page-ink); }
+body {
+  font-family: var(--f-sans); margin: 0;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 36px;
+}
+.wrap { max-width: 1040px; margin: 0 auto; display: grid; gap: 14px; }
+.intro { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; color: var(--page-dim); font-size: 13px; }
+.intro strong { color: var(--page-ink); font-weight: 600; }
+
+.device {
+  background: var(--dev); color: var(--ink); border-radius: 18px; padding: 16px 20px 20px;
+  box-shadow: 0 1px 0 rgba(255,255,255,.6) inset, 0 18px 40px -18px rgba(0,0,0,.35);
+  display: grid; gap: 12px; min-width: 0;
+}
+.head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand svg { flex: none; }
+.word { font-weight: 600; font-size: 25px; letter-spacing: -0.01em; }
+.sub { color: var(--dim); font-size: 12px; }
+.ver { color: var(--dim); font: 10.5px var(--f-mono); }
+.spacer { flex: 1; }
+.preset { display: flex; align-items: center; gap: 8px; color: var(--dim); font-size: 12px; }
+select {
+  font: 600 13px var(--f-sans); color: var(--ink); background: var(--panel); border: 1px solid var(--edge);
+  border-radius: 7px; padding: 6px 30px 6px 10px; appearance: none; min-width: 180px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%231b1a18' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 11px center; cursor: pointer;
+}
+select:focus-visible, button:focus-visible, .knob:focus-visible, .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.row { display: grid; gap: 12px; min-width: 0; }
+.top { grid-template-columns: minmax(0, 1fr) 324px; }
+.r2 { grid-template-columns: 340fr 276fr 320fr; }
+.r3 { grid-template-columns: 290fr 290fr 356fr; }
+
+.panel { background: var(--panel); border: 1px solid var(--edge); border-radius: 11px; padding: 8px 14px 10px; min-width: 0; }
+.panel h2 { margin: 0 0 6px; font-size: 12.5px; font-weight: 600; color: var(--ink); letter-spacing: 0; }
+.knobs { display: flex; flex-wrap: wrap; gap: 0; }
+.cell { width: 62px; display: flex; flex-direction: column; align-items: center; gap: 2px; user-select: none; }
+.cell.big { width: 96px; }
+.cell .lab { font-size: 11px; color: var(--dim); height: 15px; line-height: 15px; }
+.cell .val { font: 10.5px var(--f-mono); color: var(--ink); height: 15px; line-height: 15px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.cell.hot .val { color: var(--accent-ink); }
+.knob { touch-action: none; cursor: ns-resize; border-radius: 50%; display: block; }
+.knob .arc { stroke: var(--ink); opacity: .85; }
+.cell.hot .knob .arc { stroke: var(--accent); opacity: 1; }
+.cell.hot .knob .ind { stroke: var(--accent); }
+
+.seg-wrap { display: grid; gap: 3px; min-width: 0; }
+.seg-wrap .cap { font-size: 11px; color: var(--dim); }
+.seg { display: flex; background: var(--seg); border-radius: 13px; padding: 2px; height: 26px; }
+.seg button {
+  flex: 1; min-width: 0; border: 0; background: transparent; border-radius: 11px; font: 11.5px var(--f-sans);
+  color: #6b675f; cursor: pointer; padding: 0 2px; white-space: nowrap;
+}
+.seg button:hover { background: var(--panel); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--panel); font-weight: 600; }
+
+.glide { display: grid; gap: 10px; align-content: start; }
+.glide .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.glide .pair.wide { grid-template-columns: 186fr 98fr; }
+.glide .knobs { justify-content: space-between; padding-top: 4px; }
+
+.lfo-body { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-start; }
+.lfo-body .segs { flex: 1; min-width: 150px; display: grid; gap: 12px; }
+
+.screen { position: relative; min-width: 0; height: 276px; border-radius: 14px; overflow: hidden; background: var(--screen); }
+.screen canvas { width: 100%; height: 100%; display: block; }
+
+.play { display: grid; gap: 10px; }
+.play-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.play-head h2 { margin: 0; }
+.hint { color: var(--dim); font-size: 11.5px; }
+.pads { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 8px; }
+.pad {
+  border: 1px solid var(--edge); background: #f8f6f1; border-radius: 9px; padding: 10px 8px 9px; text-align: left;
+  cursor: pointer; display: grid; gap: 3px; color: var(--ink); font-family: var(--f-sans); min-width: 0;
+  transition: background .12s, border-color .12s;
+}
+.pad:hover { border-color: var(--faint, #c2bdb3); }
+.pad .cn { font-weight: 600; font-size: 16px; }
+.pad .nn { font: 9.5px var(--f-mono); color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pad .kk { font: 9.5px var(--f-mono); color: var(--dim); opacity: .7; }
+.pad.on { background: var(--ink); border-color: var(--ink); color: var(--panel); }
+.pad.on .nn, .pad.on .kk { color: #b9b4aa; }
+.pad.on .cn::after { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); margin-left: 7px; vertical-align: 3px; }
+.btn {
+  font: 600 12px var(--f-sans); color: var(--ink); background: var(--seg); border: 0; border-radius: 13px;
+  padding: 6px 12px; cursor: pointer; white-space: nowrap;
+}
+.btn:hover { background: #d9d5cc; }
+.btn[aria-pressed="true"] { background: var(--ink); color: var(--panel); }
+.status { font: 10.5px var(--f-mono); color: var(--dim); }
+.piano-wrap { border-radius: 8px; overflow: hidden; border: 1px solid var(--edge); height: 66px; background: #f8f6f1; }
+#piano { width: 100%; height: 100%; display: block; touch-action: none; cursor: pointer; }
+
+.help { color: var(--page-dim); font-size: 12.5px; line-height: 1.55; max-width: 72ch; }
+.help kbd { font: 11px var(--f-mono); border: 1px solid currentColor; border-radius: 4px; padding: 0 4px; opacity: .85; }
+
+/* Estúdio (inside the studio iframe) */
+html.in-studio body { padding-block: 10px 28px; }
+.in-studio .intro, .in-studio .help, .in-studio #midi { display: none; }
+.in-studio .device > .track { order: 1; }
+.in-studio .device > .play { order: 2; }
+.in-studio .device > .r2, .in-studio .device > .r3 { order: 3; }
+.track { display: grid; gap: 8px; }
+.track-wrap { height: 150px; border: 1px solid var(--edge); border-radius: 8px; overflow: hidden; background: #f8f6f1; }
+#trackCanvas { width: 100%; height: 100%; display: block; }
+.qseg { width: 200px; flex: none; }
+.cell, .seg-wrap { position: relative; }
+.cc { position: absolute; top: -1px; right: 1px; font: 8.5px var(--f-mono); color: var(--accent-ink); pointer-events: none; }
+.learning .cell, .learning .seg-wrap { outline: 1px dashed #b5afa4; outline-offset: 2px; border-radius: 8px; cursor: pointer; }
+.learning .knob { cursor: pointer; }
+.learning .armed { outline: 2px solid var(--accent); }
+
+@media (max-width: 900px) {
+  .top { grid-template-columns: 1fr; }
+  .r2, .r3 { grid-template-columns: 1fr 1fr; }
+  .r2 > :last-child, .r3 > :last-child { grid-column: 1 / -1; }
+  .pads { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@media (max-width: 600px) {
+  .device { padding: 12px; border-radius: 14px; }
+  .r2, .r3 { grid-template-columns: 1fr; }
+  .screen { height: 230px; }
+  .glide .knobs { justify-content: flex-start; gap: 4px; }
+  .cell.big { width: 84px; }
+  select { min-width: 150px; }
+  .cell { width: 58px; }
+  .device > .play { order: 2; }
+  .device > .r2, .device > .r3 { order: 3; }
+}
+@media (prefers-reduced-motion: reduce) { .pad { transition: none; } }
+</style>
+</head>
+<body>
+
+
+<div class="wrap">
+  <p class="intro"><strong>Deriva, versão web.</strong> <span>Cada voz desliza para a nota mais próxima do acorde seguinte. Toca num pad para ouvir.</span></p>
+
+  <main class="device" aria-label="Deriva synthesizer">
+    <div class="head">
+      <div class="brand">
+        <svg width="34" height="30" viewBox="0 0 34 30" aria-hidden="true">
+          <g fill="none" stroke="#1b1a18" stroke-width="2" stroke-linecap="round">
+            <path d="M3 15 C12 15 14 6 25 6"/><path d="M3 15 C12 15 14 15 25 15"/><path d="M3 15 C12 15 14 24 25 24"/>
+          </g>
+          <circle cx="25" cy="6" r="2.6" fill="#ff5a1f"/>
+        </svg>
+        <span class="word">deriva</span>
+        <span class="sub">chord glide synth</span>
+        <span class="ver">v0.1</span>
+      </div>
+      <div class="spacer"></div>
+      <label class="preset" for="preset">preset <select id="preset"></select></label>
+    </div>
+
+    <div class="row top">
+      <div class="screen"><canvas id="screen" aria-label="Voices gliding between chords"></canvas></div>
+      <section class="panel glide" aria-label="glide">
+        <h2>glide</h2>
+        <div class="pair"><div data-seg="glideMode" data-cap="mode"></div><div data-seg="glideFrom" data-cap="glide from"></div></div>
+        <div class="pair wide"><div data-seg="glideCurve" data-cap="curve"></div><div data-seg="cascadeDir" data-cap="cascade"></div></div>
+        <div class="knobs"><div data-knob="glideTime" data-big></div><div data-knob="cascade" data-big></div><div data-knob="voices" data-big></div></div>
+      </section>
+    </div>
+
+    <section class="panel track" id="track" hidden aria-label="faixa de acordes">
+      <div class="play-head">
+        <h2>faixa de acordes</h2>
+        <span class="hint" id="trackHint">liga o REC no topo e toca com o beat a correr</span>
+        <div class="spacer"></div>
+        <div class="seg qseg" id="quant" role="group" aria-label="quantização"><button type="button" data-q="0">livre</button><button type="button" data-q="0.25">1/16</button><button type="button" data-q="0.5">1/8</button><button type="button" data-q="1">1/4</button></div>
+        <button class="btn" id="undo">desfazer</button>
+        <button class="btn" id="clearSeq">limpar</button>
+        <button class="btn" id="exportMid">MIDI ↓</button>
+      </div>
+      <div class="track-wrap"><canvas id="trackCanvas" aria-label="Faixa de acordes gravada"></canvas></div>
+    </section>
+
+    <div class="row r2">
+      <section class="panel"><h2>oscillator</h2><div class="knobs">
+        <div data-knob="wave"></div><div data-knob="detune"></div><div data-knob="octave" data-bipolar></div><div data-knob="sub"></div><div data-knob="noise"></div>
+      </div></section>
+      <section class="panel"><h2>filter</h2><div class="knobs">
+        <div data-knob="cutoff"></div><div data-knob="resonance"></div><div data-knob="filterEnv" data-bipolar></div><div data-knob="keyTrack"></div>
+      </div></section>
+      <section class="panel"><h2>lfo</h2><div class="lfo-body">
+        <div class="knobs"><div data-knob="lfoRate"></div><div data-knob="lfoAmount"></div></div>
+        <div class="segs"><div data-seg="lfoShape" data-cap="shape"></div><div data-seg="lfoTarget" data-cap="target"></div></div>
+      </div></section>
+    </div>
+
+    <div class="row r3">
+      <section class="panel"><h2>amp env</h2><div class="knobs">
+        <div data-knob="ampA"></div><div data-knob="ampD"></div><div data-knob="ampS"></div><div data-knob="ampR"></div>
+      </div></section>
+      <section class="panel"><h2>mod env &nbsp;&gt;&nbsp; filter</h2><div class="knobs">
+        <div data-knob="modA"></div><div data-knob="modD"></div><div data-knob="modS"></div><div data-knob="modR"></div>
+      </div></section>
+      <section class="panel"><h2>fx &nbsp;/&nbsp; output</h2><div class="knobs">
+        <div data-knob="chorus"></div><div data-knob="reverb"></div><div data-knob="roomSize"></div><div data-knob="spread"></div><div data-knob="gain"></div>
+      </div></section>
+    </div>
+
+    <section class="panel play" aria-label="play">
+      <div class="play-head">
+        <h2>play</h2>
+        <button class="btn" id="auto" aria-pressed="false">▶ progressão</button>
+        <button class="btn" id="release">soltar</button>
+        <button class="btn" id="midi">ligar MIDI</button>
+        <button class="btn" id="learn" aria-pressed="false" title="Toca num knob do ecrã e depois roda um knob do teclado MIDI">MIDI learn</button>
+        <button class="btn" id="unmap" hidden>esquecer ligações</button>
+        <span class="status" id="status">som desligado · toca num pad</span>
+      </div>
+      <div class="pads" id="pads"></div>
+      <div class="piano-wrap"><canvas id="piano" aria-label="Piano keyboard"></canvas></div>
+    </section>
+  </main>
+
+  <p class="help">Teclado do computador: <kbd>1</kbd>–<kbd>8</kbd> tocam os pads; <kbd>A</kbd> <kbd>W</kbd> <kbd>S</kbd> … <kbd>K</kbd> tocam notas (segura várias para fazer acordes); <kbd>Z</kbd>/<kbd>X</kbd> mudam de oitava. Arrasta os knobs na vertical (com <kbd>Shift</kbd> para ajuste fino) e faz duplo clique para repor o valor. No plugin VST3 o comportamento e o som são os mesmos; tocas pelo MIDI do Ableton.</p>
+</div>
+
+<script src="engine.js"></script>
+<script>
+(() => {
+"use strict";
+
+// ---------------------------------------------------------------- parameters
+const fmt = {
+  sec: v => v < 1 ? Math.round(v * 1000) + " ms" : v.toFixed(2) + " s",
+  pct: v => Math.round(v * 100) + " %",
+  bip: v => { const p = Math.round(v * 100); return (p > 0 ? "+" : "") + p + " %"; },
+  hz: v => v >= 1000 ? (v / 1000).toFixed(1) + " kHz" : v < 10 ? v.toFixed(2) + " Hz" : Math.round(v) + " Hz",
+  ct: v => v.toFixed(1) + " ct",
+  db: v => v.toFixed(1) + " dB",
+  int: v => String(Math.round(v)),
+  wave: v => {
+    const n = ["sine", "tri", "saw", "square"], i = Math.min(3, Math.max(0, Math.floor(v))), f = v - i;
+    if (f < 0.05 || i === 3) return n[i];
+    if (f > 0.95) return n[i + 1];
+    return n[i] + ">" + n[i + 1];
+  },
+};
+const envT = { min: 0.001, max: 10, centre: 0.6, fmt: fmt.sec };
+const PARAMS = {
+  glideTime: { label: "time", min: 0, max: 4, centre: 0.6, def: 0.55, fmt: fmt.sec },
+  glideCurve: { choices: ["lin", "exp", "log", "s"], def: 3 },
+  glideMode: { choices: ["smooth", "steps"], def: 0 },
+  glideFrom: { choices: ["legato", "always"], def: 1 },
+  cascade: { label: "cascade", min: 0, max: 1, def: 0.15, fmt: fmt.pct },
+  cascadeDir: { choices: ["up", "down"], def: 0 },
+  voices: { label: "voices", min: 1, max: 8, def: 8, int: true, fmt: fmt.int },
+  wave: { label: "wave", min: 0, max: 3, def: 1.6, fmt: fmt.wave },
+  detune: { label: "detune", min: 0, max: 50, centre: 12, def: 8, fmt: fmt.ct },
+  octave: { label: "octave", min: -2, max: 2, def: 0, int: true, fmt: fmt.int },
+  sub: { label: "sub", min: 0, max: 1, def: 0.2, fmt: fmt.pct },
+  noise: { label: "noise", min: 0, max: 1, def: 0, fmt: fmt.pct },
+  cutoff: { label: "cutoff", min: 20, max: 20000, centre: 1000, def: 2200, fmt: fmt.hz },
+  resonance: { label: "reso", min: 0, max: 1, def: 0.15, fmt: fmt.pct },
+  filterEnv: { label: "env", min: -1, max: 1, def: 0.25, fmt: fmt.bip },
+  keyTrack: { label: "key", min: 0, max: 1, def: 0.4, fmt: fmt.pct },
+  ampA: { label: "attack", ...envT, def: 0.03 }, ampD: { label: "decay", ...envT, def: 0.6 },
+  ampS: { label: "sustain", min: 0, max: 1, def: 0.8, fmt: fmt.pct }, ampR: { label: "release", ...envT, def: 1.2 },
+  modA: { label: "attack", ...envT, def: 0.01 }, modD: { label: "decay", ...envT, def: 0.8 },
+  modS: { label: "sustain", min: 0, max: 1, def: 0.2, fmt: fmt.pct }, modR: { label: "release", ...envT, def: 0.8 },
+  lfoShape: { choices: ["sin", "tri", "saw", "sqr", "s&h", "rnd"], def: 0 },
+  lfoRate: { label: "rate", min: 0.01, max: 20, centre: 2, def: 0.4, fmt: fmt.hz },
+  lfoAmount: { label: "amount", min: 0, max: 1, def: 0.2, fmt: fmt.pct },
+  lfoTarget: { choices: ["pitch", "filter", "vol", "pan"], def: 1 },
+  chorus: { label: "chorus", min: 0, max: 1, def: 0.25, fmt: fmt.pct },
+  reverb: { label: "reverb", min: 0, max: 1, def: 0.3, fmt: fmt.pct },
+  roomSize: { label: "size", min: 0, max: 1, def: 0.6, fmt: fmt.pct },
+  spread: { label: "spread", min: 0, max: 1, def: 0.6, fmt: fmt.pct },
+  gain: { label: "gain", min: -24, max: 6, def: -3, fmt: fmt.db },
+};
+for (const p of Object.values(PARAMS)) {
+  if (p.centre !== undefined) p.skew = Math.log(0.5) / Math.log((p.centre - p.min) / (p.max - p.min));
+}
+const toNorm = (p, v) => { const x = (v - p.min) / (p.max - p.min); return p.skew ? Math.pow(Math.max(0, x), p.skew) : x; };
+const fromNorm = (p, n) => {
+  n = Math.min(1, Math.max(0, n));
+  let v = p.skew ? p.min + (p.max - p.min) * Math.exp(Math.log(Math.max(n, 1e-9)) / p.skew) : p.min + (p.max - p.min) * n;
+  if (p.skew && n <= 0) v = p.min;
+  return p.int ? Math.round(v) : v;
+};
+
+const values = {};
+for (const [id, p] of Object.entries(PARAMS)) values[id] = p.def;
+
+const PRESETS = [
+  ["Init Glide", {}],
+  ["Glass Choir", { wave: .45, detune: 12, sub: 0, cutoff: 4200, resonance: .1, filterEnv: .1, ampA: .6, ampR: 2.5, glideTime: .9, glideCurve: 3, cascade: .25, chorus: .5, reverb: .55, roomSize: .8, lfoTarget: 0, lfoShape: 0, lfoRate: 5, lfoAmount: .08 }],
+  ["Warm Strings", { wave: 2, detune: 18, cutoff: 1800, resonance: .2, filterEnv: .2, ampA: .4, ampR: 1.5, glideTime: .6, glideCurve: 1, cascade: .1, chorus: .6, reverb: .4, lfoTarget: 1, lfoAmount: .15, lfoRate: .3 }],
+  ["Step Ladder", { glideMode: 1, glideTime: 1.2, glideCurve: 0, cascade: .4, wave: 2.6, cutoff: 2500, resonance: .35, ampA: .01, chorus: .2, reverb: .35 }],
+  ["Drift Bass", { voices: 1, octave: -1, wave: 2.2, sub: .6, cutoff: 600, resonance: .4, filterEnv: .5, modD: .4, modS: .1, ampA: .005, ampR: .3, glideTime: .25, glideCurve: 1, reverb: .1, chorus: 0, lfoAmount: 0, spread: 0 }],
+  ["Night Pad", { wave: 1.2, detune: 25, cutoff: 900, resonance: .25, filterEnv: .35, modA: 1.5, modD: 2, modS: .5, ampA: 1.2, ampR: 3.5, glideTime: 1.6, glideCurve: 3, cascade: .3, cascadeDir: 1, lfoTarget: 1, lfoShape: 5, lfoAmount: .25, lfoRate: .5, chorus: .4, reverb: .7, roomSize: .9, spread: .9 }],
+];
+
+// ---------------------------------------------------------------- audio
+// Inside the Estúdio, Deriva runs in the BeatVox audio context so both share one clock.
+const STUDIO = (() => { try { return window.parent !== window && window.parent.Studio ? window.parent.Studio : null; } catch (e) { return null; } })();
+if (STUDIO) document.documentElement.classList.add("in-studio");
+let ctx = null, node = null, mainDsp = null, audioReady = null, latestView = null, previewPitches = [];
+// the shared AudioContext lives in another document, whose performance.now() has a different origin
+let ctxOriginShift = 0;
+const queued = [];
+const status = document.getElementById("status");
+
+function sendParams() {
+  if (node) node.port.postMessage({ type: "params", params: { ...values } });
+  if (mainDsp) mainDsp.setParams({ ...values });
+}
+// time (optional) = audio-context seconds at which the events should happen
+function sendEvents(events, time) {
+  if (!events.length) return;
+  if (node) node.port.postMessage({ type: "events", events, time });
+  else if (mainDsp) { if (typeof time === "number" && time > ctx.currentTime) mainDsp.enqueue(time, events); else mainDsp.handleEvents(events); }
+  else if (typeof time !== "number") queued.push(...events);
+}
+function clearScheduled() {
+  if (node) node.port.postMessage({ type: "clearQueue" });
+  else if (mainDsp) mainDsp.clearQueue();
+}
+async function makeWorkletNode(c, AWN, dest) {
+  await c.audioWorklet.addModule(new URL("engine.js", location.href).href);
+  const n = new AWN(c, "deriva", { numberOfInputs: 0, outputChannelCount: [2] });
+  n.port.onmessage = e => { if (e.data.type === "view") latestView = e.data.view; };
+  n.connect(dest);
+  return n;
+}
+function ensureAudio() {
+  if (audioReady) return audioReady;
+  audioReady = (async () => {
+    let mode = "audio worklet";
+    const shared = STUDIO && STUDIO.audio ? STUDIO.audio() : null;
+    if (shared && shared.ctx) {
+      try {
+        ctx = shared.ctx;
+        if (typeof shared.timeOrigin === "number") ctxOriginShift = performance.timeOrigin - shared.timeOrigin;
+        node = await makeWorkletNode(ctx, shared.AWN || AudioWorkletNode, shared.dest || ctx.destination);
+        mode = "relógio partilhado com o BeatVox";
+      } catch (err) { console.warn("Deriva: shared audio failed, using its own", err); ctx = null; node = null; }
+    }
+    if (!ctx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      ctx = new AC({ latencyHint: "interactive" });
+      try {
+        if (!ctx.audioWorklet) throw new Error("no worklet");
+        node = await makeWorkletNode(ctx, AudioWorkletNode, ctx.destination);
+      } catch (err) {
+        mode = "modo compatível";
+        node = null;
+        mainDsp = new DerivaDSP(ctx.sampleRate);
+        const sp = ctx.createScriptProcessor(2048, 0, 2);
+        sp.onaudioprocess = e => {
+          const L = e.outputBuffer.getChannelData(0), R = e.outputBuffer.getChannelData(1);
+          mainDsp.process(L, R, L.length, ctx.currentTime);
+        };
+        sp.connect(ctx.destination);
+        window.__derivaKeep = sp;
+      }
+    }
+    sendParams();
+    if (ctx.state !== "running") ctx.resume().catch(() => {});
+    status.textContent = "som ligado · " + mode + " · " + ctx.sampleRate / 1000 + " kHz";
+    const q = queued.splice(0);
+    sendEvents([{ type: "prime", pitches: previewPitches }].concat(q));
+  })();
+  return audioReady;
+}
+// audio-context time that was coming out of the speakers at a given performance.now() moment
+function heardAt(perfTime) {
+  if (!ctx) return 0;
+  if (ctx.getOutputTimestamp) {
+    const o = ctx.getOutputTimestamp();
+    if (o && o.performanceTime > 0) return o.contextTime + (perfTime + ctxOriginShift - o.performanceTime) / 1000;
+  }
+  return ctx.currentTime - (ctx.outputLatency || ctx.baseLatency || 0.02) - (performance.now() - perfTime) / 1000;
+}
+const heardNow = () => heardAt(performance.now());
+
+// ---------------------------------------------------------------- controls
+const knobRegistry = {}, segRegistry = {};
+let learning = false, learnTarget = null;
+const START = Math.PI * 1.25, END = Math.PI * 2.75;
+const pt = (cx, cy, r, a) => [cx + r * Math.sin(a), cy - r * Math.cos(a)];
+function arcPath(cx, cy, r, a0, a1) {
+  if (a1 - a0 < 0.001) return "";
+  const [x0, y0] = pt(cx, cy, r, a0), [x1, y1] = pt(cx, cy, r, a1);
+  return `M${x0.toFixed(2)} ${y0.toFixed(2)} A${r} ${r} 0 ${a1 - a0 > Math.PI ? 1 : 0} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`;
+}
+
+function setValue(id, v, fromUser = true) {
+  const p = PARAMS[id];
+  if (p.choices) v = Math.round(Math.min(p.choices.length - 1, Math.max(0, v)));
+  else { v = Math.min(p.max, Math.max(p.min, v)); if (p.int) v = Math.round(v); }
+  values[id] = v;
+  if (knobRegistry[id]) knobRegistry[id].render();
+  if (segRegistry[id]) segRegistry[id].render();
+  if (fromUser) sendParams();
+}
+
+let gradCount = 0;
+function makeKnob(host) {
+  const id = host.dataset.knob, p = PARAMS[id], big = host.hasAttribute("data-big"), bipolar = host.hasAttribute("data-bipolar");
+  const size = big ? 64 : 52, c = size / 2, rT = c - 2, rB = c - 7;
+  const gid = "kg" + gradCount++;
+  host.className = "cell" + (big ? " big" : "");
+  host.innerHTML = `<span class="lab">${p.label}</span>
+    <svg class="knob" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" tabindex="0" role="slider"
+      aria-label="${p.label}" aria-valuemin="0" aria-valuemax="1">
+      <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a3a38"/><stop offset="1" stop-color="#111110"/></linearGradient></defs>
+      <path d="${arcPath(c, c, rT, START, END)}" fill="none" stroke="#d6d2c9" stroke-width="2.2" stroke-linecap="round"/>
+      <path class="arc" fill="none" stroke-width="2.2" stroke-linecap="round"/>
+      <circle cx="${c}" cy="${c + 2}" r="${rB}" fill="rgba(0,0,0,.10)"/>
+      <circle cx="${c}" cy="${c}" r="${rB}" fill="url(#${gid})" stroke="rgba(255,255,255,.06)"/>
+      <line class="ind" stroke="#f4f2ed" stroke-width="2.2" stroke-linecap="round"/>
+    </svg>
+    <span class="val"></span>`;
+  const svg = host.querySelector("svg"), arc = host.querySelector(".arc"), ind = host.querySelector(".ind"), val = host.querySelector(".val");
+  const k = {
+    render() {
+      const n = toNorm(p, values[id]), a = START + n * (END - START);
+      const from = bipolar ? (START + END) / 2 : START;
+      arc.setAttribute("d", arcPath(c, c, rT, Math.min(from, a), Math.max(from, a)));
+      const [x1, y1] = pt(c, c, rB * 0.38, a), [x2, y2] = pt(c, c, rB * 0.8, a);
+      ind.setAttribute("x1", x1); ind.setAttribute("y1", y1); ind.setAttribute("x2", x2); ind.setAttribute("y2", y2);
+      const text = p.fmt(values[id]);
+      val.textContent = text;
+      svg.setAttribute("aria-valuenow", n.toFixed(3));
+      svg.setAttribute("aria-valuetext", text);
+    },
+  };
+  let drag = null;
+  svg.addEventListener("pointerdown", e => {
+    if (learning) { armLearn(id); e.preventDefault(); return; }
+    svg.setPointerCapture(e.pointerId);
+    drag = { y: e.clientY, x: e.clientX, n: toNorm(p, values[id]) };
+    host.classList.add("hot");
+    e.preventDefault();
+  });
+  svg.addEventListener("pointermove", e => {
+    if (!drag) return;
+    const sens = e.shiftKey ? 1200 : 220;
+    const dn = ((drag.y - e.clientY) + (e.clientX - drag.x) * 0.5) / sens;
+    setValue(id, fromNorm(p, drag.n + dn));
+  });
+  const end = () => { drag = null; host.classList.remove("hot"); };
+  svg.addEventListener("pointerup", end);
+  svg.addEventListener("pointercancel", end);
+  svg.addEventListener("dblclick", () => setValue(id, p.def));
+  svg.addEventListener("wheel", e => { e.preventDefault(); setValue(id, fromNorm(p, toNorm(p, values[id]) - Math.sign(e.deltaY) * (p.int ? 1 / (p.max - p.min) : 0.02))); }, { passive: false });
+  svg.addEventListener("keydown", e => {
+    const step = p.int ? 1 / (p.max - p.min) : (e.shiftKey ? 0.005 : 0.03);
+    if (e.key === "ArrowUp" || e.key === "ArrowRight") { setValue(id, fromNorm(p, toNorm(p, values[id]) + step)); e.preventDefault(); }
+    if (e.key === "ArrowDown" || e.key === "ArrowLeft") { setValue(id, fromNorm(p, toNorm(p, values[id]) - step)); e.preventDefault(); }
+  });
+  host.addEventListener("pointerenter", () => host.classList.add("hot"));
+  host.addEventListener("pointerleave", () => { if (!drag) host.classList.remove("hot"); });
+  knobRegistry[id] = k;
+  k.render();
+}
+
+function makeSeg(host) {
+  const id = host.dataset.seg, p = PARAMS[id];
+  host.className = "seg-wrap";
+  host.innerHTML = `<span class="cap">${host.dataset.cap}</span><div class="seg" role="group" aria-label="${host.dataset.cap}"></div>`;
+  const bar = host.querySelector(".seg");
+  const buttons = p.choices.map((name, i) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.textContent = name;
+    b.addEventListener("click", () => (learning ? armLearn(id) : setValue(id, i)));
+    bar.appendChild(b);
+    return b;
+  });
+  segRegistry[id] = { render() { buttons.forEach((b, i) => b.setAttribute("aria-pressed", String(i === values[id]))); } };
+  segRegistry[id].render();
+}
+
+document.querySelectorAll("[data-knob]").forEach(makeKnob);
+document.querySelectorAll("[data-seg]").forEach(makeSeg);
+
+const presetSel = document.getElementById("preset");
+PRESETS.forEach(([name], i) => presetSel.add(new Option(name, String(i))));
+function applyPreset(i) {
+  for (const [id, p] of Object.entries(PARAMS)) values[id] = p.def;
+  Object.assign(values, PRESETS[i][1]);
+  for (const id of Object.keys(PARAMS)) setValue(id, values[id], false);
+  sendParams();
+}
+presetSel.addEventListener("change", () => applyPreset(+presetSel.value));
+
+// ---------------------------------------------------------------- chord naming (port of ChordNamer.h)
+const PC = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"];
+const noteName = n => PC[((n % 12) + 12) % 12] + (Math.floor(n / 12) - 1);
+const TEMPLATES = [
+  [[0, 4, 7], ""], [[0, 3, 7], "m"], [[0, 4, 7, 10], "7"], [[0, 4, 7, 11], "maj7"], [[0, 3, 7, 10], "m7"],
+  [[0, 3, 6], "dim"], [[0, 4, 8], "aug"], [[0, 5, 7], "sus4"], [[0, 2, 7], "sus2"], [[0, 3, 6, 10], "m7b5"],
+  [[0, 3, 6, 9], "dim7"], [[0, 4, 7, 9], "6"], [[0, 3, 7, 9], "m6"], [[0, 3, 7, 11], "mMaj7"], [[0, 5, 7, 10], "7sus4"],
+  [[0, 2, 4, 7], "add9"], [[0, 2, 3, 7], "madd9"], [[0, 2, 4, 7, 10], "9"], [[0, 2, 4, 7, 11], "maj9"], [[0, 2, 3, 7, 10], "m9"],
+  [[0, 2, 4, 7, 9], "6/9"], [[0, 1, 4, 7, 10], "7b9"], [[0, 3, 4, 7, 10], "7#9"], [[0, 2, 4, 5, 7, 10], "11"],
+  [[0, 2, 3, 5, 7, 10], "m11"], [[0, 2, 4, 7, 9, 10], "13"], [[0, 4, 6, 10], "7b5"], [[0, 4, 8, 10], "aug7"], [[0, 7], "5"],
+].map(([iv, s]) => ({ mask: iv.reduce((m, i) => m | (1 << i), 0), size: iv.length, has5: iv.includes(7), s }));
+function nameChord(notes) {
+  if (!notes.length) return { name: "", notes: "" };
+  notes = [...notes].sort((a, b) => a - b);
+  const pcs = [];
+  for (const n of notes) if (!pcs.includes(n % 12)) pcs.push(n % 12);
+  const notesStr = pcs.map(p => PC[p]).join(" · ");
+  if (pcs.length === 1) return { name: PC[pcs[0]], notes: notesStr };
+  const bass = pcs[0];
+  let best = "", bestScore = Infinity;
+  for (const root of pcs) {
+    let mask = 0;
+    for (const p of pcs) mask |= 1 << (((p - root) % 12 + 12) % 12);
+    TEMPLATES.forEach((t, idx) => {
+      let score = -1;
+      if (mask === t.mask) score = idx;
+      else if (t.has5 && t.size >= 4 && (mask | 128) === t.mask) score = idx + 40;
+      if (score < 0) return;
+      if (root !== bass) score += 20;
+      if (score < bestScore) { bestScore = score; best = PC[root] + t.s + (root !== bass ? "/" + PC[bass] : ""); }
+    });
+  }
+  return { name: best || PC[bass] + " ?", notes: notesStr };
+}
+
+// ---------------------------------------------------------------- display (port of VoiceDisplay.cpp)
+const C = { screen: "#121211", grid: "#2a2927", stext: "#77726a", line: "#eeebe4", accent: "#ff5a1f" };
+const HIST = 240;
+const display = {
+  canvas: document.getElementById("screen"),
+  hist: Array.from({ length: 8 }, () => Array.from({ length: HIST }, () => ({ pitch: 60, level: 0, gliding: false }))),
+  w: 0, frame: 0, lo: 45, hi: 81, chord: { name: "", notes: "" }, held: [], heldKey: "", chordHeld: false, ever: false,
+  last: null,
+  push(view) {
+    if (!view) return;
+    this.last = view;
+    view.voices.forEach((v, i) => { this.hist[i][this.w] = { pitch: v.pitch, level: v.level, gliding: v.gliding }; });
+    this.w = (this.w + 1) % HIST; this.frame++;
+    const key = view.held.join(",");
+    if (key !== this.heldKey) {
+      this.heldKey = key; this.held = view.held.slice(); this.chordHeld = this.held.length > 0;
+      if (this.chordHeld) { this.chord = nameChord(this.held); this.ever = true; }
+    }
+    let mn = Infinity, mx = -Infinity;
+    for (const v of view.voices) if (v.level > 0.002) { mn = Math.min(mn, v.pitch, v.target); mx = Math.max(mx, v.pitch, v.target); }
+    for (const n of this.held) { mn = Math.min(mn, n); mx = Math.max(mx, n); }
+    if (mx >= mn) {
+      let lo = mn - 7, hi = mx + 7;
+      if (hi - lo < 26) { const c = (lo + hi) / 2; lo = c - 13; hi = c + 13; }
+      this.lo += (lo - this.lo) * 0.06; this.hi += (hi - this.hi) * 0.06;
+    }
+  },
+  draw() {
+    const cv = this.canvas, dpr = window.devicePixelRatio || 1;
+    const W = cv.clientWidth, H = cv.clientHeight;
+    if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+    const g = cv.getContext("2d");
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const bg = g.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, "#1d1d1b"); bg.addColorStop(1, "#0b0b0b");
+    g.fillStyle = bg; g.fillRect(0, 0, W, H);
+
+    const narrow = W < 460;
+    const plot = { x: narrow ? 38 : 46, y: 60, r: W - (narrow ? 50 : 64), b: H - 26 };
+    plot.w = plot.r - plot.x; plot.h = plot.b - plot.y;
+    const yFor = p => plot.b - (p - this.lo) / Math.max(1, this.hi - this.lo) * plot.h;
+
+    g.font = "10px " + getComputedStyle(document.body).getPropertyValue("--f-mono");
+    g.textBaseline = "middle";
+    for (let n = Math.ceil(this.lo); n <= Math.floor(this.hi); n++) {
+      const y = Math.round(yFor(n)) + 0.5;
+      if (n % 12 === 0) {
+        g.strokeStyle = C.grid; g.lineWidth = 1; g.beginPath(); g.moveTo(plot.x, y); g.lineTo(plot.r, y); g.stroke();
+        g.fillStyle = C.stext; g.textAlign = "left"; g.fillText(noteName(n), 10, y);
+      } else if (this.held.includes(n)) {
+        g.strokeStyle = "#353432"; g.setLineDash([2, 5]); g.beginPath(); g.moveTo(plot.x, y); g.lineTo(plot.r, y); g.stroke(); g.setLineDash([]);
+      }
+    }
+    const dx = plot.w / (HIST - 1);
+    for (let i = 0; i < HIST; i++) {
+      const frame = this.frame - (HIST - 1 - i);
+      if (frame % 30 === 0) {
+        const x = Math.round(plot.x + i * dx) + 0.5;
+        g.strokeStyle = "rgba(255,255,255,0.025)"; g.beginPath(); g.moveTo(x, plot.y); g.lineTo(x, plot.b); g.stroke();
+        g.strokeStyle = "#3d3c39"; g.beginPath(); g.moveTo(x, plot.b); g.lineTo(x, plot.b + 4); g.stroke();
+      }
+    }
+    g.strokeStyle = "#464542"; g.lineWidth = 1; g.beginPath();
+    g.moveTo(plot.x + 0.5, plot.y - 6); g.lineTo(plot.x + 0.5, plot.b + 0.5); g.lineTo(plot.r + 6, plot.b + 0.5); g.stroke();
+    g.font = "9.5px " + getComputedStyle(document.body).getPropertyValue("--f-mono");
+    g.fillStyle = "rgba(119,114,106,0.7)"; g.textAlign = "right"; g.fillText("time", plot.r, plot.b + 12);
+
+    // voice lines
+    g.save();
+    g.beginPath(); g.rect(plot.x - 2, plot.y - 8, plot.w + 4, plot.h + 16); g.clip();
+    g.lineCap = "butt"; g.lineJoin = "round";
+    const stroke = (pts, level, glide, age) => {
+      const a = Math.min(1, Math.max(0.1, level * 1.7)) * (0.22 + 0.78 * age);
+      const col = glide ? "255,90,31" : "238,235,228";
+      g.beginPath(); g.moveTo(pts[0], pts[1]);
+      for (let k = 2; k < pts.length; k += 2) g.lineTo(pts[k], pts[k + 1]);
+      g.strokeStyle = `rgba(${col},${a * 0.16})`; g.lineWidth = 6; g.stroke();
+      g.strokeStyle = `rgba(${col},${a})`; g.lineWidth = 1.7; g.stroke();
+    };
+    for (let v = 0; v < 8; v++) {
+      let pts = null, lev = 0, gl = false, cnt = 0;
+      for (let i = 0; i < HIST; i++) {
+        const s = this.hist[v][(this.w + i) % HIST];
+        const on = s.level > 0.002, x = plot.x + i * dx, y = yFor(s.pitch);
+        if (on) {
+          if (!pts) { pts = [x, y]; lev = s.level; gl = s.gliding; cnt = 0; } else pts.push(x, y);
+          lev = Math.max(lev, s.level); gl = gl || s.gliding; cnt++;
+        }
+        const last = i === HIST - 1;
+        if (pts && (!on || cnt >= 10 || last)) {
+          if (pts.length >= 4) stroke(pts, lev, gl, i / (HIST - 1));
+          if (on && !last) { pts = [x, y]; cnt = 1; lev = s.level; gl = s.gliding; } else pts = null;
+        }
+      }
+    }
+    g.restore();
+
+    // heads + labels
+    const latest = (this.w + HIST - 1) % HIST, heads = [];
+    let sounding = 0;
+    const lv = this.last ? this.last.voices : [];
+    for (let v = 0; v < 8; v++) {
+      const s = this.hist[v][latest];
+      if (lv[v] && lv[v].note >= 0) sounding++;
+      if (s.level <= 0.002) continue;
+      const y = yFor(s.pitch);
+      heads.push({ y, ly: y, level: s.level, glide: s.gliding, label: noteName(Math.round(lv[v] ? lv[v].target : s.pitch)) });
+    }
+    heads.sort((a, b) => a.y - b.y);
+    for (let i = 1; i < heads.length; i++) heads[i].ly = Math.max(heads[i].ly, heads[i - 1].ly + 12);
+    g.font = "10px " + getComputedStyle(document.body).getPropertyValue("--f-mono"); g.textAlign = "left";
+    for (const h of heads) {
+      const a = Math.min(1, Math.max(0.25, h.level * 1.8)), x = plot.r;
+      if (h.glide) { g.fillStyle = `rgba(255,90,31,${0.25 * a})`; g.beginPath(); g.arc(x, h.y, 7, 0, 7); g.fill(); }
+      g.fillStyle = h.glide ? `rgba(255,90,31,${a})` : `rgba(238,235,228,${a})`;
+      g.beginPath(); g.arc(x, h.y, 3.5, 0, 7); g.fill();
+      g.fillStyle = C.screen; g.beginPath(); g.arc(x, h.y, 1.3, 0, 7); g.fill();
+      g.fillStyle = `rgba(238,235,228,${a * 0.85})`; g.fillText(h.label, x + 10, h.ly);
+    }
+
+    // header
+    const sans = getComputedStyle(document.body).getPropertyValue("--f-sans");
+    const name = this.ever ? this.chord.name : "--";
+    g.font = `600 ${narrow ? 22 : 26}px ${sans}`; g.textAlign = "left"; g.textBaseline = "alphabetic";
+    g.fillStyle = this.chordHeld ? C.line : C.stext; g.fillText(name, 18, 38);
+    const nw = g.measureText(name).width;
+    if (this.ever && !narrow) { g.font = "11px " + getComputedStyle(document.body).getPropertyValue("--f-mono"); g.fillStyle = C.stext; g.fillText(this.chord.notes, 30 + nw, 36); }
+    g.font = "10.5px " + getComputedStyle(document.body).getPropertyValue("--f-mono"); g.textAlign = "right"; g.fillStyle = C.stext;
+    g.fillText(`${sounding} / ${Math.round(values.voices)} voices`, W - 18, 32);
+    if (this.ever && narrow) { g.textAlign = "left"; g.fillText(this.chord.notes, 18, 54); }
+  },
+};
+
+// prefill the screen with a short silent run so it shows real glides before any sound
+(function prefill() {
+  const dsp = new DerivaDSP(48000);
+  dsp.setParams({ ...values });
+  const L = new Float32Array(800), R = new Float32Array(800);
+  const prog = [[48, 55, 59, 64], [45, 55, 60, 64], [50, 57, 60, 65]];
+  let prev = null;
+  for (let f = 0; f < HIST; f++) {
+    const step = Math.floor(f / 90);
+    if (f % 90 === 0 && step < prog.length) {
+      const ev = [];
+      if (prev) prev.forEach(n => ev.push({ type: "off", note: n }));
+      prog[step].forEach(n => ev.push({ type: "on", note: n, vel: 0.8 }));
+      dsp.handleEvents(ev); prev = prog[step];
+    }
+    dsp.process(L, R, 800);
+    display.push(dsp.getView());
+  }
+  previewPitches = dsp.voices.map(v => (v.hasPitch ? v.pitch : null));
+})();
+
+// ---------------------------------------------------------------- playing: pads, keys, piano, MIDI
+const PADS = [
+  [48, 55, 59, 64], [45, 55, 60, 64], [50, 57, 60, 65], [43, 53, 59, 62],
+  [41, 52, 57, 60], [40, 50, 55, 59], [45, 52, 55, 62], [50, 53, 57, 60, 64],
+];
+const padsEl = document.getElementById("pads");
+let activePad = -1, padNotes = [];
+const padButtons = PADS.map((notes, i) => {
+  const b = document.createElement("button");
+  b.type = "button"; b.className = "pad";
+  const ch = nameChord(notes);
+  b.innerHTML = `<span class="cn">${ch.name}</span><span class="nn">${notes.map(noteName).join(" ")}</span><span class="kk">${i + 1}</span>`;
+  b.addEventListener("click", () => { stopAuto(); triggerPad(i, true); });
+  padsEl.appendChild(b);
+  return b;
+});
+function triggerPad(i, toggle) {
+  ensureAudio();
+  const ev = padNotes.map(n => ({ type: "off", note: n }));
+  if (toggle && i === activePad) { activePad = -1; padNotes = []; }
+  else { activePad = i; padNotes = PADS[i].slice(); padNotes.forEach(n => ev.push({ type: "on", note: n, vel: 0.8 })); }
+  playEvents(ev);
+  padButtons.forEach((b, j) => b.classList.toggle("on", j === activePad));
+}
+function releaseAll() {
+  recCloseAll();
+  liveHeld.clear();
+  sendEvents([{ type: "allOff" }]);
+  activePad = -1; padNotes = []; keysDown.clear(); pianoNote = -1;
+  padButtons.forEach(b => b.classList.remove("on"));
+}
+
+let autoTimer = null, autoStep = 0;
+const autoBtn = document.getElementById("auto");
+function stopAuto() { if (autoTimer) { clearInterval(autoTimer); autoTimer = null; autoBtn.setAttribute("aria-pressed", "false"); autoBtn.textContent = "▶ progressão"; } }
+autoBtn.addEventListener("click", () => {
+  if (autoTimer) { stopAuto(); releaseAll(); return; }
+  ensureAudio();
+  autoStep = 0; triggerPad(0, false);
+  autoTimer = setInterval(() => { autoStep = (autoStep + 1) % 4; triggerPad(autoStep, false); }, 2000);
+  autoBtn.setAttribute("aria-pressed", "true"); autoBtn.textContent = "■ parar";
+});
+document.getElementById("release").addEventListener("click", () => { stopAuto(); releaseAll(); });
+
+// computer keyboard
+const KEYMAP = { a: 0, w: 1, s: 2, e: 3, d: 4, f: 5, t: 6, g: 7, y: 8, h: 9, u: 10, j: 11, k: 12, o: 13, l: 14, p: 15, ";": 16 };
+let octave = 4;
+const keysDown = new Map();
+window.addEventListener("keydown", e => {
+  if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
+  const t = e.target;
+  if (t && (t.tagName === "SELECT" || t.tagName === "INPUT" || t.getAttribute("role") === "slider")) return;
+  const key = e.key.toLowerCase();
+  if (key >= "1" && key <= "8") { stopAuto(); triggerPad(+key - 1, true); return; }
+  if (key === "z") { octave = Math.max(1, octave - 1); return; }
+  if (key === "x") { octave = Math.min(7, octave + 1); return; }
+  if (key in KEYMAP && !keysDown.has(key)) {
+    ensureAudio();
+    const note = 12 * (octave + 1) + KEYMAP[key];
+    keysDown.set(key, note);
+    playEvents([{ type: "on", note, vel: 0.8 }]);
+  }
+});
+window.addEventListener("keyup", e => {
+  const key = e.key.toLowerCase();
+  if (keysDown.has(key)) { playEvents([{ type: "off", note: keysDown.get(key) }]); keysDown.delete(key); }
+});
+
+// piano
+const piano = document.getElementById("piano");
+let pianoNote = -1;
+function pianoRange() { return piano.clientWidth < 560 ? [48, 72] : [36, 84]; }
+const isBlack = n => [1, 3, 6, 8, 10].includes(n % 12);
+function pianoLayout() {
+  const [lo, hi] = pianoRange(), W = piano.clientWidth, H = piano.clientHeight;
+  const whites = []; for (let n = lo; n <= hi; n++) if (!isBlack(n)) whites.push(n);
+  const ww = W / whites.length, keys = [];
+  whites.forEach((n, i) => keys.push({ n, x: i * ww, w: ww, h: H, black: false }));
+  for (let n = lo; n <= hi; n++) if (isBlack(n)) {
+    const left = keys.find(k => k.n === n - 1);
+    if (left) keys.push({ n, x: left.x + ww * 0.68, w: ww * 0.64, h: H * 0.6, black: true });
+  }
+  return keys;
+}
+function noteAt(x, y) {
+  const keys = pianoLayout();
+  const hitB = keys.find(k => k.black && x >= k.x && x <= k.x + k.w && y <= k.h);
+  if (hitB) return hitB.n;
+  const hitW = keys.find(k => !k.black && x >= k.x && x < k.x + k.w);
+  return hitW ? hitW.n : -1;
+}
+function drawPiano(held) {
+  const dpr = window.devicePixelRatio || 1, W = piano.clientWidth, H = piano.clientHeight;
+  if (piano.width !== Math.round(W * dpr) || piano.height !== Math.round(H * dpr)) { piano.width = Math.round(W * dpr); piano.height = Math.round(H * dpr); }
+  const g = piano.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.fillStyle = "#f8f6f1"; g.fillRect(0, 0, W, H);
+  const keys = pianoLayout();
+  g.font = "9px " + getComputedStyle(document.body).getPropertyValue("--f-mono"); g.textAlign = "center"; g.textBaseline = "alphabetic";
+  for (const k of keys) {
+    const down = held.includes(k.n);
+    if (!k.black) {
+      if (down) { g.fillStyle = "rgba(255,90,31,0.85)"; g.fillRect(k.x, 0, k.w, k.h); }
+      g.fillStyle = "#d9d5cc"; g.fillRect(Math.round(k.x), 0, 1, k.h);
+      if (k.n % 12 === 0) { g.fillStyle = down ? "#fff" : "#8a857c"; g.fillText(noteName(k.n), k.x + k.w / 2, H - 6); }
+    }
+  }
+  for (const k of keys) if (k.black) {
+    g.fillStyle = held.includes(k.n) ? "#ff5a1f" : "#1d1d1c";
+    g.beginPath(); g.roundRect ? g.roundRect(k.x, 0, k.w, k.h, [0, 0, 3, 3]) : g.rect(k.x, 0, k.w, k.h); g.fill();
+  }
+}
+piano.addEventListener("pointerdown", e => {
+  piano.setPointerCapture(e.pointerId); ensureAudio();
+  const r = piano.getBoundingClientRect(), n = noteAt(e.clientX - r.left, e.clientY - r.top);
+  if (n >= 0) { pianoNote = n; playEvents([{ type: "on", note: n, vel: 0.8 }]); }
+});
+piano.addEventListener("pointermove", e => {
+  if (pianoNote < 0) return;
+  const r = piano.getBoundingClientRect(), n = noteAt(e.clientX - r.left, e.clientY - r.top);
+  if (n >= 0 && n !== pianoNote) { playEvents([{ type: "off", note: pianoNote }, { type: "on", note: n, vel: 0.8 }]); pianoNote = n; }
+});
+const pianoUp = () => { if (pianoNote >= 0) playEvents([{ type: "off", note: pianoNote }]); pianoNote = -1; };
+piano.addEventListener("pointerup", pianoUp);
+piano.addEventListener("pointercancel", pianoUp);
+
+// MIDI (standalone page; inside the Estúdio the hub owns the MIDI ports and forwards messages)
+function midiMessage(data, timeStamp) {
+  const st = data[0], d1 = data[1], d2 = data[2], type = st & 0xf0;
+  if (st >= 0xf0) return;
+  const heard = timeStamp && ctx ? heardAt(timeStamp) : undefined;
+  if (type === 0x90 && d2 > 0) playEvents([{ type: "on", note: d1, vel: d2 / 127 }], heard);
+  else if (type === 0x80 || (type === 0x90 && d2 === 0)) playEvents([{ type: "off", note: d1 }], heard);
+  else if (type === 0xb0) handleCC(d1, d2);
+  else if (type === 0xe0) sendEvents([{ type: "bend", value: (((d2 << 7) | d1) - 8192) / 8192 * 2 }]);
+}
+document.getElementById("midi").addEventListener("click", async () => {
+  ensureAudio();
+  if (!navigator.requestMIDIAccess) { status.textContent = "MIDI não disponível neste browser"; return; }
+  try {
+    const access = await navigator.requestMIDIAccess();
+    const hook = () => access.inputs.forEach(inp => { inp.onmidimessage = m => midiMessage(m.data, m.timeStamp); });
+    hook(); access.onstatechange = hook;
+    const names = [...access.inputs.values()].map(i => i.name);
+    status.textContent = names.length ? "MIDI: " + names.join(", ") : "MIDI ligado · nenhum teclado encontrado";
+  } catch (err) {
+    status.textContent = "MIDI bloqueado aqui · abre o index.html do zip no Chrome";
+  }
+});
+
+// ---------------------------------------------------------------- live playing + recording hooks
+const liveHeld = new Set();
+function playEvents(events, heard) {
+  ensureAudio();
+  sendEvents(events);
+  for (const e of events) {
+    if (e.type === "on") { liveHeld.add(e.note); recNoteOn(e.note, e.vel, heard); }
+    else if (e.type === "off") { liveHeld.delete(e.note); recNoteOff(e.note, heard); }
+  }
+}
+
+// ---------------------------------------------------------------- MIDI learn (knobs of the keyboard -> parameters)
+const MAPKEY = "deriva.midimap";
+let midiMap = {};
+try { midiMap = JSON.parse(localStorage.getItem(MAPKEY) || "{}") || {}; } catch (e) { midiMap = {}; }
+const lastCC = {};
+const saveMap = () => { try { localStorage.setItem(MAPKEY, JSON.stringify(midiMap)); } catch (e) {} };
+const learnBtn = document.getElementById("learn"), unmapBtn = document.getElementById("unmap");
+const paramLabel = id => PARAMS[id].label || (document.querySelector(`[data-seg="${id}"]`) || {}).dataset?.cap || id;
+function ccFor(id) { for (const [cc, m] of Object.entries(midiMap)) if (m.id === id) return cc; return null; }
+function renderBadges() {
+  document.querySelectorAll("[data-knob],[data-seg]").forEach(host => {
+    const id = host.dataset.knob || host.dataset.seg;
+    let b = host.querySelector(":scope > .cc");
+    if (!b) { b = document.createElement("span"); b.className = "cc"; host.appendChild(b); }
+    const cc = ccFor(id);
+    b.textContent = cc !== null ? "cc" + cc : "";
+    host.classList.toggle("armed", learning && learnTarget === id);
+  });
+}
+function setLearning(on) {
+  learning = on; learnTarget = null;
+  document.documentElement.classList.toggle("learning", on);
+  learnBtn.setAttribute("aria-pressed", String(on));
+  learnBtn.textContent = on ? "terminar learn" : "MIDI learn";
+  unmapBtn.hidden = !on;
+  status.textContent = on ? "MIDI learn: toca num knob do ecrã e roda um knob do teclado" : status.textContent;
+  renderBadges();
+}
+function armLearn(id) {
+  learnTarget = id;
+  status.textContent = "agora roda um knob do teclado para «" + paramLabel(id) + "»";
+  renderBadges();
+}
+learnBtn.addEventListener("click", () => setLearning(!learning));
+unmapBtn.addEventListener("click", () => { midiMap = {}; saveMap(); renderBadges(); status.textContent = "ligações MIDI apagadas"; });
+const relDelta = v => (v >= 32 && v <= 96 ? v - 64 : v < 64 ? v : v - 128);
+function handleCC(num, val) {
+  if (num === 64) { sendEvents([{ type: "sustain", on: val >= 64 }]); return; }
+  if (num === 120 || num === 123) { releaseAll(); return; }
+  if (learning && learnTarget) {
+    for (const k of Object.keys(midiMap)) if (midiMap[k].id === learnTarget) delete midiMap[k];
+    midiMap[num] = { id: learnTarget, rel: false };
+    saveMap(); lastCC[num] = val;
+    status.textContent = "cc " + num + " → " + paramLabel(learnTarget) + " · toca noutro knob para ligar mais";
+    learnTarget = null; renderBadges();
+    return;
+  }
+  const m = midiMap[num];
+  if (!m || !PARAMS[m.id]) return;
+  // relative encoders repeat the same value (e.g. 65, 65, 65); absolute knobs never do
+  if (!m.rel && lastCC[num] === val && val !== 64 && Math.abs(val - 64) <= 7) { m.rel = true; saveMap(); }
+  lastCC[num] = val;
+  const p = PARAMS[m.id];
+  if (p.choices) {
+    if (m.rel) { const d = relDelta(val); if (d) setValue(m.id, values[m.id] + Math.sign(d)); }
+    else setValue(m.id, Math.min(p.choices.length - 1, Math.floor(val / 128 * p.choices.length)));
+  } else if (m.rel) setValue(m.id, fromNorm(p, toNorm(p, values[m.id]) + relDelta(val) * 0.008));
+  else setValue(m.id, fromNorm(p, val / 127));
+}
+renderBadges();
+
+// ---------------------------------------------------------------- chord track (Estúdio only)
+// Notes are stored in beats from the start of the BeatVox loop: { note, vel, start, len, take }.
+const SEQKEY = "deriva.seq";
+let seq = { notes: [], quant: 0.25 };
+try {
+  const saved = JSON.parse(localStorage.getItem(SEQKEY) || "null");
+  if (saved && Array.isArray(saved.notes)) seq = { quant: 0.25, ...saved };
+} catch (e) {}
+const saveSeq = () => {
+  try { localStorage.setItem(SEQKEY, JSON.stringify({ quant: seq.quant, notes: seq.notes.map(({ note, vel, start, len, take }) => ({ note, vel, start, len, take })) })); } catch (e) {}
+};
+const transport = () => (STUDIO && STUDIO.transport ? STUDIO.transport() : null);
+const beatDurOf = T => T.stepDur * T.stepsPerBeat;
+const loopBeatsOf = T => T.loopBeats || T.bars * 4;
+const openRec = new Map();
+const takeStack = [];
+let recSession = 0, wasRecording = false;
+
+function recNoteOn(note, vel, heard) {
+  const T = transport();
+  if (!T || !T.playing || !T.recording || !ctx) return;
+  openRec.set(note, { t: heard ?? heardNow(), vel });
+}
+function recNoteOff(note, heard) {
+  const o = openRec.get(note);
+  if (!o) return;
+  openRec.delete(note);
+  const T = transport();
+  if (T) commitNote(note, o.vel, o.t, heard ?? heardNow(), T);
+}
+function recCloseAll() {
+  const T = transport(), t = heardNow();
+  if (T) for (const [note, o] of openRec) commitNote(note, o.vel, o.t, t, T);
+  openRec.clear();
+}
+function commitNote(note, vel, tOn, tOff, T) {
+  const bd = beatDurOf(T), LB = loopBeatsOf(T);
+  const rel = (tOn - T.t0) / bd;
+  const loopIdx = Math.floor(rel / LB);
+  let start = rel - loopIdx * LB, len = Math.max(0.05, (tOff - tOn) / bd);
+  const q = seq.quant;
+  if (q) { start = Math.round(start / q) * q; len = Math.max(q, Math.round(len / q) * q); }
+  if (start >= LB - 1e-6) start -= LB;
+  start = Math.max(0, start);
+  len = Math.min(len, LB);
+  const take = recSession + ":" + loopIdx;
+  if (takeStack[takeStack.length - 1] !== take) takeStack.push(take);
+  // a note held across the end of the loop continues at the start of the loop
+  const parts = start + len > LB + 1e-6 ? [[start, LB - start], [0, start + len - LB]] : [[start, len]];
+  for (const [st, ln] of parts) {
+    seq.notes = seq.notes.filter(n => n.note !== note || n.start + n.len <= st + 1e-6 || n.start >= st + ln - 1e-6);
+    seq.notes.push({ note, vel, start: st, len: ln, take, armTime: ctx.currentTime });
+  }
+  seq.notes.sort((a, b) => a.start - b.start || a.note - b.note);
+  saveSeq();
+}
+
+let schedUntil = 0, lastT0 = null;
+const seqSounding = new Set();
+function seqSilence() {
+  clearScheduled();
+  const ev = [];
+  for (const n of seqSounding) if (!liveHeld.has(n)) ev.push({ type: "off", note: n });
+  seqSounding.clear();
+  if (ev.length) sendEvents(ev);
+}
+function schedule() {
+  const T = transport();
+  if (!T || !ctx || (!node && !mainDsp)) return;
+  if (T.recording && !wasRecording) recSession++;
+  wasRecording = T.recording;
+  if (!T.playing) {
+    if (lastT0 !== null) { recCloseAll(); seqSilence(); lastT0 = null; }
+    return;
+  }
+  if (T.t0 !== lastT0) {
+    if (lastT0 !== null) seqSilence();
+    lastT0 = T.t0;
+    schedUntil = Math.max(ctx.currentTime, T.t0);
+  }
+  const horizon = ctx.currentTime + 0.15;
+  if (horizon <= schedUntil) return;
+  const bd = beatDurOf(T), LB = loopBeatsOf(T), loopDur = LB * bd;
+  const groups = new Map();
+  const add = (t, e) => { const k = Math.round(t * 1e6) / 1e6; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(e); };
+  const k0 = Math.max(0, Math.floor((schedUntil - T.t0) / loopDur) - 1);
+  const k1 = Math.floor((horizon - T.t0) / loopDur);
+  for (let k = k0; k <= k1; k++) {
+    const base = T.t0 + k * loopDur;
+    for (const n of seq.notes) {
+      if (n.start >= LB) continue;
+      const on = base + n.start * bd, off = base + Math.min(LB, n.start + n.len) * bd;
+      if (n.armTime && on < n.armTime) continue;
+      if (on >= schedUntil && on < horizon) add(on, { type: "on", note: n.note, vel: n.vel });
+      if (off >= schedUntil && off < horizon) add(off, { type: "off", note: n.note });
+    }
+  }
+  schedUntil = horizon;
+  [...groups.keys()].sort((x, y) => x - y).forEach(t => {
+    const evs = groups.get(t);
+    evs.sort((x, y) => (x.type === "off" ? 0 : 1) - (y.type === "off" ? 0 : 1));
+    evs.forEach(e => (e.type === "on" ? seqSounding.add(e.note) : seqSounding.delete(e.note)));
+    sendEvents(evs, t);
+  });
+}
+
+const trackCanvas = document.getElementById("trackCanvas");
+const quantBtns = [...document.querySelectorAll("#quant button")];
+const renderQuant = () => quantBtns.forEach(b => b.setAttribute("aria-pressed", String(+b.dataset.q === seq.quant)));
+quantBtns.forEach(b => b.addEventListener("click", () => { seq.quant = +b.dataset.q; saveSeq(); renderQuant(); }));
+renderQuant();
+document.getElementById("undo").addEventListener("click", () => {
+  const take = takeStack.pop();
+  if (take === undefined) { status.textContent = "nada para desfazer"; return; }
+  seq.notes = seq.notes.filter(n => n.take !== take); saveSeq(); seqSilence(); schedUntil = ctx ? ctx.currentTime : 0;
+});
+document.getElementById("clearSeq").addEventListener("click", () => {
+  seq.notes = []; takeStack.length = 0; saveSeq(); seqSilence(); schedUntil = ctx ? ctx.currentTime : 0;
+});
+document.getElementById("exportMid").addEventListener("click", exportMidi);
+
+function drawTrack() {
+  const cv = trackCanvas, dpr = window.devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
+  if (!W || !H) return;
+  if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+  const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const T = transport() || { bars: 2, stepsPerBeat: 4, stepDur: 0.17, playing: false, recording: false, t0: 0 };
+  const LB = loopBeatsOf(T), mono = getComputedStyle(document.body).getPropertyValue("--f-mono");
+  g.fillStyle = "#f8f6f1"; g.fillRect(0, 0, W, H);
+  const top = 18, xOf = b => (b / LB) * W;
+  for (let bt = 0; bt <= LB; bt++) {
+    const x = Math.round(xOf(bt)) + 0.5, bar = bt % 4 === 0;
+    g.strokeStyle = bar ? "#cfcac0" : "#e7e3da"; g.beginPath(); g.moveTo(x, bar ? 0 : top); g.lineTo(x, H); g.stroke();
+    if (bar && bt < LB) { g.fillStyle = "#8a857c"; g.font = "9.5px " + mono; g.textAlign = "left"; g.textBaseline = "middle"; g.fillText(String(bt / 4 + 1), x + 4, 9); }
+  }
+  const openNow = [];
+  const nowBeat = T.playing ? ((((heardNow() - T.t0) / beatDurOf(T)) % LB) + LB) % LB : null;
+  for (const [note, o] of openRec) {
+    const s0 = ((((o.t - T.t0) / beatDurOf(T)) % LB) + LB) % LB;
+    openNow.push({ note, start: s0, len: nowBeat === null ? 0.25 : Math.max(0.1, ((nowBeat - s0) + LB) % LB) });
+  }
+  const all = seq.notes.concat(openNow);
+  if (!all.length) {
+    g.fillStyle = "#8a857c"; g.font = "12px " + getComputedStyle(document.body).getPropertyValue("--f-sans"); g.textAlign = "center"; g.textBaseline = "middle";
+    g.fillText(T.recording ? "a gravar: toca acordes no teclado" : "liga o REC e toca acordes com o beat a correr", W / 2, (H + top) / 2);
+  } else {
+    let lo = Math.min(...all.map(n => n.note)), hi = Math.max(...all.map(n => n.note));
+    if (hi - lo < 12) { const c = (lo + hi) / 2; lo = Math.floor(c - 6); hi = Math.ceil(c + 6); }
+    const rowH = (H - top - 6) / (hi - lo + 1), yOf = n => top + (hi - n) * rowH;
+    const bar = (n, col) => {
+      const x = xOf(n.start) + 1, w = Math.max(3, xOf(n.len) - 2), y = yOf(n.note) + 1, h = Math.max(2, rowH - 2);
+      g.fillStyle = col; g.beginPath(); g.roundRect ? g.roundRect(x, y, w, h, 2) : g.rect(x, y, w, h); g.fill();
+    };
+    seq.notes.forEach(n => bar(n, "#1b1a18"));
+    openNow.forEach(n => bar(n, "#ff5a1f"));
+    // chord names where 2+ notes start together
+    const starts = new Map();
+    seq.notes.forEach(n => { const k = n.start.toFixed(3); if (!starts.has(k)) starts.set(k, []); starts.get(k).push(n.note); });
+    g.font = "600 10px " + getComputedStyle(document.body).getPropertyValue("--f-sans"); g.textAlign = "left"; g.textBaseline = "middle"; g.fillStyle = "#1b1a18";
+    for (const [k, ns] of starts) if (ns.length >= 2) g.fillText(nameChord(ns).name, xOf(+k) + 4, 9);
+  }
+  if (nowBeat !== null) {
+    const x = xOf(nowBeat);
+    g.fillStyle = T.recording ? "#e0362c" : "#ff5a1f"; g.fillRect(x - 1, 0, 2, H);
+  }
+  if (T.recording) { g.fillStyle = "#e0362c"; g.font = "600 10px " + mono; g.textAlign = "right"; g.textBaseline = "middle"; g.fillText("● REC", W - 6, 9); }
+}
+
+function exportMidi() {
+  if (!seq.notes.length) { status.textContent = "a faixa está vazia"; return; }
+  const T = transport() || { bpm: 90 }, bpm = T.bpm || 90, PPQ = 480;
+  const vlq = n => { const b = [n & 0x7f]; while ((n >>= 7)) b.unshift((n & 0x7f) | 0x80); return b; };
+  const u32 = n => [(n >>> 24) & 255, (n >>> 16) & 255, (n >>> 8) & 255, n & 255];
+  const chunk = events => {
+    events.sort((x, y) => x.tick - y.tick || x.order - y.order);
+    let last = 0; const out = [];
+    for (const e of events) { out.push(...vlq(e.tick - last), ...e.bytes); last = e.tick; }
+    out.push(0, 0xff, 0x2f, 0);
+    return [0x4d, 0x54, 0x72, 0x6b, ...u32(out.length), ...out];
+  };
+  const tempo = Math.round(60000000 / bpm), name = [...new TextEncoder().encode("Deriva")];
+  const meta = chunk([
+    { tick: 0, order: 0, bytes: [0xff, 0x51, 3, (tempo >> 16) & 255, (tempo >> 8) & 255, tempo & 255] },
+    { tick: 0, order: 1, bytes: [0xff, 0x58, 4, 4, 2, 24, 8] },
+  ]);
+  const ev = [{ tick: 0, order: -1, bytes: [0xff, 0x03, name.length, ...name] }];
+  for (const n of seq.notes) {
+    const on = Math.round(n.start * PPQ), off = Math.round((n.start + n.len) * PPQ), v = Math.max(1, Math.min(127, Math.round(n.vel * 127)));
+    ev.push({ tick: on, order: 1, bytes: [0x90, n.note, v] }, { tick: off, order: 0, bytes: [0x80, n.note, 0] });
+  }
+  const bytes = new Uint8Array([0x4d, 0x54, 0x68, 0x64, 0, 0, 0, 6, 0, 1, 0, 2, PPQ >> 8, PPQ & 255, ...meta, ...chunk(ev)]);
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([bytes], { type: "audio/midi" }));
+  a.download = "deriva-acordes.mid";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  status.textContent = "deriva-acordes.mid guardado";
+}
+
+if (STUDIO) {
+  document.getElementById("track").hidden = false;
+  setInterval(schedule, 25);
+}
+// API used by the Estúdio hub
+window.DerivaAPI = {
+  start: () => ensureAudio(),
+  midi: (data, timeStamp) => midiMessage(data, timeStamp),
+  isLearning: () => learning,
+  held: () => (latestView ? latestView.held.slice() : []),
+  seqNotes: () => seq.notes.map(n => ({ ...n })),
+};
+
+// ---------------------------------------------------------------- frame loop
+let acc = 0, lastT = performance.now();
+function loop(t) {
+  const dt = Math.min(0.25, (t - lastT) / 1000); lastT = t;
+  if (mainDsp) latestView = mainDsp.getView();
+  if (latestView) {
+    acc += dt;
+    let n = 0;
+    while (acc >= 1 / 60 && n < 4) { display.push(latestView); acc -= 1 / 60; n++; }
+    if (n === 4) acc = 0;
+  }
+  display.draw();
+  const held = latestView ? latestView.held : [];
+  drawPiano(held);
+  if (STUDIO) drawTrack();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+})();
+</script>
+
+</body>
+</html>
